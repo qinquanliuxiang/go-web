@@ -11,8 +11,7 @@
       "mode": "auto",
       "program": "${workspaceFolder}/main.go",
       "env": {
-        "CONFIG_PATH": "${workspaceFolder}/config.yaml",
-        "CASBIN_MODE_PATH": "${workspaceFolder}/model.conf"
+        "CONFIG_PATH": "${workspaceFolder}/config.yaml"
       },
       "args": [
         "run"

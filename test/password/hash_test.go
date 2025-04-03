@@ -89,7 +89,6 @@ func TestLdapSha256Crypt(t *testing.T) {
 		Avatar:   "avatar",
 		Email:    "test1@qqlx.net",
 		Mobile:   "mobile",
-		RoleName: "ops",
 	}
 	requestID := uuid.New().String()
 	ctx := context.WithValue(context.TODO(), constant.TraceID, requestID)
