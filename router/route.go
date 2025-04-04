@@ -32,6 +32,7 @@ func (a *ApiRoute) RegisterApiUserRoute(r *gin.RouterGroup, authorization *middl
 		userGroup.POST("/login", a.userCtrl.LoginHandler)
 		userGroup.Use(middleware.Authentication())
 		{
+			userGroup.POST("/logout", a.userCtrl.LogoutHandler)
 			userGroup.GET("", authorization.Authorization(), a.userCtrl.ListHandler)
 			userGroup.PATCH("", a.userCtrl.UpdatePasswordHandler)
 			userGroup.PUT("", a.userCtrl.UpdateHandler)

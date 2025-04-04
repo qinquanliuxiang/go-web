@@ -55,6 +55,19 @@ func (receive *UserCtrl) LoginHandler(c *gin.Context) {
 	receive.res.ResponseSuccess(c, res)
 }
 
+func (receive *UserCtrl) LogoutHandler(c *gin.Context) {
+	claims, err := jwt.GetMyClaims(c)
+	if err != nil {
+		receive.res.ResponseFailure(c, err)
+		return
+	}
+	if err = receive.userSvc.Logout(c, claims.UserID); err != nil {
+		receive.res.ResponseFailure(c, err)
+		return
+	}
+	receive.res.ResponseSuccess(c, nil)
+}
+
 func (receive *UserCtrl) UpdateHandler(c *gin.Context) {
 	req := new(schema.UserUpdateRequest)
 	if receive.res.BindAndCheck(c, req, handler.WithCheckJson()) {

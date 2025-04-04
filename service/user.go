@@ -181,6 +181,23 @@ func (receive *UserSVC) Login(ctx context.Context, req *schema.UserLoginRequest)
 	return res, err
 }
 
+func (receive *UserSVC) Logout(ctx context.Context, id int) (err error) {
+	query, err := receive.userStore.Query(ctx, userstore.ID(id))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+		}
+		return err
+	}
+	if query != nil {
+		err = receive.cache.Del(ctx, helpers.GetRoleCacheKey(query.Name))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (receive *UserSVC) DeleteUser(ctx context.Context, req *schema.UserIDRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("user delete, request: %#v", req)
 	var user *model.User
