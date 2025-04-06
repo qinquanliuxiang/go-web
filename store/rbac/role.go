@@ -34,6 +34,13 @@ func LoadPolices() RoleQueryOption {
 	}
 }
 
+// LoadPolicies role 设置预加载 Policys
+func LoadPolicies() RoleQueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		return query.Preload("Policys")
+	}
+}
+
 // LoadUsers role 设置预加载 Users
 func LoadUsers() RoleQueryOption {
 	return func(query *gorm.DB) *gorm.DB {
@@ -96,8 +103,14 @@ func (receive *RoleStore) Delete(ctx context.Context, role *model.Role, options 
 	return nil
 }
 
-func (receive *RoleStore) List(ctx context.Context, page int, pageSize int) (total int64, roles []model.Role, err error) {
+func (receive *RoleStore) List(ctx context.Context, page int, pageSize int, options ...RoleQueryOption) (total int64, roles []model.Role, err error) {
 	query := receive.store.WithContext(ctx).Model(&model.Role{})
+
+	// 添加查询选项
+	for _, option := range options {
+		query = option(query)
+	}
+
 	// 计数查询
 	err = query.Count(&total).Error
 	if err != nil {
@@ -107,7 +120,6 @@ func (receive *RoleStore) List(ctx context.Context, page int, pageSize int) (tot
 	// 数据查询
 	err = query.Offset((page - 1) * pageSize).
 		Limit(pageSize).
-		Preload("Policys").
 		Find(&roles).Error
 	if err != nil {
 		return 0, nil, apierr.InternalServer().WithMsg("failed to list roles").WithErr(err)

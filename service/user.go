@@ -198,6 +198,30 @@ func (receive *UserSVC) Logout(ctx context.Context, id int) (err error) {
 	return nil
 }
 
+//func (receive *UserSVC) SearchUserByEmail(ctx context.Context, req *schema.UserSearchRequest) (res []schema.UserResponse, err error) {
+//	logger.WithContext(ctx, true).Debugf("user search, request: %#v", req)
+//	if req.Limit == 0 || req.Limit > 100 {
+//		req.Limit = 20 // 默认限制
+//	}
+//	if req.Keyword != "name" && req.Keyword != "email" {
+//		return nil, apierr.InternalServer().WithStack().WithErr(reason.ErrUserSearch).WithMsg("keyword must be name or email")
+//	}
+//
+//	users, err := receive.userStore.Querys(ctx, userstore.QueryByNameOrEmail(ctx, req.Keyword, req.Value, req.Limit))
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	if len(users) == 0 {
+//		return nil, apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound).WithMsg(fmt.Sprintf("search user failed, keyword: %s, value: %s", req.Keyword, req.Value))
+//	}
+//	res = make([]schema.UserResponse, 0, len(users))
+//	for i := range res {
+//		res[i].ConvertToUserResponse(&users[i])
+//	}
+//	return res, nil
+//}
+
 func (receive *UserSVC) DeleteUser(ctx context.Context, req *schema.UserIDRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("user delete, request: %#v", req)
 	var user *model.User
@@ -403,7 +427,15 @@ func (receive *UserSVC) Info(ctx context.Context, id int) (res *schema.UserRespo
 
 func (receive *UserSVC) ListUser(ctx context.Context, req *schema.UserListRequest) (data *schema.UserListResponse, err error) {
 	logger.WithContext(ctx, true).Debugf("user list, request: %#v", req)
-	total, users, err := receive.userStore.List(ctx, req.Page, req.PageSize)
+	options := make([]userstore.QueryOption, 0)
+	// 过滤关键字
+	if req.Keyword != "" {
+		options = append(options, userstore.QueryByNameOrEmail(req.Keyword, req.Value))
+	}
+	// 过滤状态
+	options = append(options, userstore.Status(req.Status))
+
+	total, users, err := receive.userStore.List(ctx, req.Page, req.PageSize, options...)
 	if err != nil {
 		return nil, err
 	}

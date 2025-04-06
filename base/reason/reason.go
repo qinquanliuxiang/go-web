@@ -18,7 +18,6 @@ var (
 	ErrUserNotFound      = errors.New("user does not exist")
 	ErrInvalidPassword   = errors.New("password is invalid")
 	ErrPolicyNotFound    = errors.New("policy does not exist")
-	ErrGetIDFailed       = errors.New("id is invalid")
 	ErrAdminRole         = errors.New("admin role can not modify policy")
 	ErrNameInvalid       = errors.New("name must contain only letters")
 )

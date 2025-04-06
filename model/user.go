@@ -22,7 +22,7 @@ type User struct {
 	Avatar    string                `gorm:"comment:用户头像;size:1024"`
 	Mobile    string                `gorm:"comment:用户手机号;size:20"`
 	Status    *int                  `gorm:"comment:用户状态,1可用,2删除;size:1;default:1"`
-	Role      *Role                 `gorm:"foreignKey:RoleName;references:Name"`
+	Role      *Role                 `gorm:"foreignKey:RoleName;references:Name" json:"role,omitempty"`
 }
 
 func (u *User) TableName() string {

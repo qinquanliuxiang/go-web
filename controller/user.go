@@ -68,6 +68,19 @@ func (receive *UserCtrl) LogoutHandler(c *gin.Context) {
 	receive.res.ResponseSuccess(c, nil)
 }
 
+//func (receive *UserCtrl) SearchHandler(c *gin.Context) {
+//	req := new(schema.UserSearchRequest)
+//	if receive.res.BindAndCheck(c, req, handler.WithCheckQuery()) {
+//		return
+//	}
+//	res, err := receive.userSvc.SearchUserByEmail(c, req)
+//	if err != nil {
+//		receive.res.ResponseFailure(c, err)
+//		return
+//	}
+//	receive.res.ResponseSuccess(c, res)
+//}
+
 func (receive *UserCtrl) UpdateHandler(c *gin.Context) {
 	req := new(schema.UserUpdateRequest)
 	if receive.res.BindAndCheck(c, req, handler.WithCheckJson()) {

@@ -52,6 +52,7 @@ type UserStoreInterface interface {
 	// @return user 用户
 	// @return err 错误
 	Query(ctx context.Context, options ...userstore.QueryOption) (user *model.User, err error)
+	Querys(ctx context.Context, options ...userstore.QueryOption) (user []model.User, err error)
 	Create(ctx context.Context, user *model.User) (err error)
 	Save(ctx context.Context, user *model.User) (err error)
 	// Delete 删除用户
@@ -60,7 +61,15 @@ type UserStoreInterface interface {
 	// @param options 删除选项
 	// @return err 错误
 	Delete(ctx context.Context, user *model.User, options ...userstore.DeleteOption) (err error)
-	List(ctx context.Context, page, pageSize int) (total int64, users []model.User, err error)
+	// List 查询用户列表
+	//
+	// @param page 页码
+	// @param pageSize 每页数量
+	// @param options 查询选项
+	// @return total 总数
+	// @return users 用户列表
+	// @return err 错误
+	List(ctx context.Context, page, pageSize int, options ...userstore.QueryOption) (total int64, users []model.User, err error)
 }
 
 // RoleStoreInterface 角色CRUD
@@ -79,7 +88,7 @@ type RoleStoreInterface interface {
 	// @param options 删除选项
 	// @return err 错误
 	Delete(ctx context.Context, role *model.Role, options ...rbac.RoleDeleteOption) (err error)
-	List(ctx context.Context, page, pageSize int) (total int64, roles []model.Role, err error)
+	List(ctx context.Context, page, pageSize int, options ...rbac.RoleQueryOption) (total int64, roles []model.Role, err error)
 }
 
 // RolePolicyStoreInterface 角色关联策略
@@ -111,7 +120,6 @@ type PolicyStoreInterface interface {
 	// @return policy 策略
 	// @return err 错误
 	Query(ctx context.Context, options ...rbac.PolicyQueryOption) (policy *model.Policy, err error)
-	Querys(ctx context.Context, options ...rbac.PolicyQueryOption) (polices []model.Policy, err error)
 	Create(ctx context.Context, policy *model.Policy) (err error)
 	Save(ctx context.Context, policy *model.Policy) (err error)
 	// Delete 删除策略
@@ -120,7 +128,7 @@ type PolicyStoreInterface interface {
 	// @param options 删除选项
 	// @return err 错误
 	Delete(ctx context.Context, policy *model.Policy, options ...rbac.PolicyDeleteOption) (err error)
-	List(ctx context.Context, page, pageSize int) (total int64, polices []model.Policy, err error)
+	List(ctx context.Context, page, pageSize int, options ...rbac.PolicyQueryOption) (total int64, polices []model.Policy, err error)
 }
 
 // CacheInterface 缓存

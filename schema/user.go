@@ -8,6 +8,13 @@ import (
 type UserIDRequest struct {
 	ID int `uri:"id" validate:"required,gte=1"`
 }
+type UserListRequest struct {
+	Page     int    `form:"page" validate:"required,gt=0"`
+	PageSize int    `form:"pageSize" validate:"required,gt=0"`
+	Status   int    `form:"status" validate:"required,oneof=-1 1 2"`       // -1:全部 1:启用 2:禁用
+	Keyword  string `form:"keyword" validate:"omitempty,oneof=name email"` // 支持 name 或 email 前缀模糊搜索
+	Value    string `form:"value" validate:"required_with=Keyword"`        // keyword存在的时候Value一定要存在
+}
 
 type UserNameRequest struct {
 	Name string `uri:"name" validate:"required,gte=1"`
@@ -72,11 +79,6 @@ func (receive *UserResponse) ConvertToUserResponse(in *model.User) {
 	receive.RoleName = in.RoleName
 	receive.Status = *in.Status
 	receive.Role = in.Role
-}
-
-type UserListRequest struct {
-	Page     int `form:"page" validate:"required,gt=0"`
-	PageSize int `form:"pageSize" validate:"required,gt=0"`
 }
 
 type UserListResponse struct {

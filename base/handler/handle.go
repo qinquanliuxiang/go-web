@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"qqlx/base/apierr"
+	"qqlx/base/constant"
 	"qqlx/base/reason"
 	"qqlx/base/validator"
 )
@@ -30,7 +31,7 @@ func (receive *BindRequest) ResponseSuccess(c *gin.Context, data any) {
 }
 
 func (receive *BindRequest) ResponseFailure(c *gin.Context, err error) {
-	c.Set("error", err)
+	c.Set(constant.LogErrMidwareKey, err)
 	res := receive.getResp(err)
 	switch res.Code {
 	case http.StatusBadRequest:
@@ -115,7 +116,7 @@ func (receive *BindRequest) getResp(err error) *response {
 	if !ok {
 		return &response{
 			Code: http.StatusInternalServerError,
-			Msg:  err.Error(),
+			Err:  err.Error(),
 		}
 	}
 	return &response{

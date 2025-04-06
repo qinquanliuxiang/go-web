@@ -47,6 +47,29 @@ func LoadRolePolicy() QueryOption {
 	}
 }
 
+// QueryByNameOrEmail 根据 name 或 email 进行前缀查询
+func QueryByNameOrEmail(keyword string, value string) QueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		likeVal := value + "%"
+		switch keyword {
+		case "name":
+			query = query.Where("name LIKE ?", likeVal)
+		case "email":
+			query = query.Where("email LIKE ?", likeVal)
+		}
+		return query
+	}
+}
+
+func Status(status int) QueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		if status == model.UserStatusAvailable || status == model.UserStatusDisable {
+			return query.Where("status = ?", status)
+		}
+		return query
+	}
+}
+
 type DeleteOption func(query *gorm.DB) *gorm.DB
 
 // Unscoped 永久删除 user
@@ -76,6 +99,20 @@ func (receive *Store) Query(ctx context.Context, options ...QueryOption) (user *
 	err = sql.Take(&user).Error
 	if err != nil {
 		return nil, apierr.InternalServer().WithMsg("failed to query user").WithErr(err)
+	}
+	return
+}
+
+func (receive *Store) Querys(ctx context.Context, options ...QueryOption) (user []model.User, err error) {
+	sql := receive.store.WithContext(ctx).Model(&model.User{})
+	if len(options) > 0 {
+		for _, option := range options {
+			sql = option(sql)
+		}
+	}
+	err = sql.Find(&user).Error
+	if err != nil {
+		return nil, apierr.InternalServer().WithMsg("failed to query users").WithErr(err)
 	}
 	return
 }
@@ -115,19 +152,24 @@ func (receive *Store) Save(ctx context.Context, user *model.User) (err error) {
 	return nil
 }
 
-func (receive *Store) List(ctx context.Context, page, pageSize int) (total int64, users []model.User, err error) {
-	// 计数查询
+func (receive *Store) List(ctx context.Context, page, pageSize int, options ...QueryOption) (int64, []model.User, error) {
 	query := receive.store.WithContext(ctx).Model(&user.User{})
-	if err = query.Count(&total).Error; err != nil {
-		return 0, nil, apierr.InternalServer().WithMsg("failed to count users").WithErr(err)
 
+	for _, option := range options {
+		query = option(query)
 	}
 
-	// 数据查询
-	if err = query.
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return 0, nil, apierr.InternalServer().WithMsg("failed to count users").WithErr(err)
+	}
+
+	var users []model.User
+	err := query.
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
-		Find(&users).Error; err != nil {
+		Find(&users).Error
+	if err != nil {
 		return 0, nil, apierr.InternalServer().WithMsg("failed to list users").WithErr(err)
 	}
 	return total, users, nil

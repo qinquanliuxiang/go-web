@@ -164,7 +164,7 @@ func (receive *RoleSVC) AddByPolicy(ctx context.Context, req *schema.RolePolicyR
 		return apierr.InternalServer().WithErr(reason.ErrAdminRole).WithStack()
 	}
 
-	reqPolices, err := receive.policyStore.Querys(ctx, rbac.InPolicy(reqPolicesIDs))
+	_, reqPolices, err := receive.policyStore.List(ctx, 1, len(reqPolicesIDs), rbac.InPolicy(reqPolicesIDs))
 	if err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func (receive *RoleSVC) DeleteByPolicy(ctx context.Context, req *schema.RolePoli
 	}
 
 	// 获取数据库中的策略
-	reqPolices, err := receive.policyStore.Querys(ctx, rbac.InPolicy(policesID))
+	_, reqPolices, err := receive.policyStore.List(ctx, 1, len(policesID), rbac.InPolicy(policesID))
 	if err != nil {
 		return err
 	}

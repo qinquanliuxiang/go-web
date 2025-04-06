@@ -110,8 +110,13 @@ func (receive *PolicyStore) Delete(ctx context.Context, policy *model.Policy, op
 	return nil
 }
 
-func (receive *PolicyStore) List(ctx context.Context, page int, pageSize int) (total int64, polices []model.Policy, err error) {
+func (receive *PolicyStore) List(ctx context.Context, page int, pageSize int, options ...PolicyQueryOption) (total int64, polices []model.Policy, err error) {
 	query := receive.data.WithContext(ctx).Model(&model.Policy{})
+	// 添加查询选项
+	for _, option := range options {
+		query = option(query)
+	}
+
 	err = query.Count(&total).Error
 	if err != nil {
 		return 0, nil, apierr.InternalServer().WithMsg("failed to count policies").WithErr(err)
