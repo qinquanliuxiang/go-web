@@ -40,10 +40,10 @@ func SortByCreatedDesc() QueryOption {
 	}
 }
 
-// LoadRole 用户预加载 Role
-func LoadRole() QueryOption {
+// LoadRoles 用户预加载 Role
+func LoadRoles() QueryOption {
 	return func(query *gorm.DB) *gorm.DB {
-		return query.Preload("Role")
+		return query.Preload("Roles")
 	}
 }
 
@@ -180,4 +180,30 @@ func (receive *Store) List(ctx context.Context, page, pageSize int, options ...Q
 		return 0, nil, apierr.InternalServer().WithMsg("failed to list users").WithErr(err)
 	}
 	return total, users, nil
+}
+
+type UserAssociationStore struct {
+	store *gorm.DB
+}
+
+func NewUserAssociationStore(store *gorm.DB) *UserAssociationStore {
+	return &UserAssociationStore{
+		store: store,
+	}
+}
+
+func (r *UserAssociationStore) AppendRoles(ctx context.Context, user *model.User, appendRoles []model.Role) (err error) {
+	err = r.store.WithContext(ctx).Model(&user).Association("Roles").Append(&appendRoles)
+	if err != nil {
+		return apierr.InternalServer().WithMsg("failed to append roles").WithErr(err)
+	}
+	return nil
+}
+
+func (r *UserAssociationStore) DeleteRoles(ctx context.Context, user *model.User, roles []model.Role) (err error) {
+	err = r.store.WithContext(ctx).Model(&user).Association("Roles").Delete(&roles)
+	if err != nil {
+		return apierr.InternalServer().WithMsg("failed to delete roles").WithErr(err)
+	}
+	return nil
 }

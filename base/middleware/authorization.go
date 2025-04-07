@@ -12,6 +12,7 @@ import (
 	"qqlx/store"
 	"qqlx/store/cache"
 	"qqlx/store/userstore"
+	"strings"
 )
 
 const AuthFailed = "authentication failed"
@@ -52,7 +53,7 @@ func (receive *AuthorizationMiddleware) Authorization() gin.HandlerFunc {
 			}, apierr.Unauthorized().WithMsg("get cache failed").WithErr(err).WithStack())
 			return
 		}
-
+		_roleName := make([]string, 0)
 		if roleName == "" {
 			user, err := receive.userStore.Query(c, userstore.Name(claims.UserName))
 			if err != nil {
@@ -63,8 +64,15 @@ func (receive *AuthorizationMiddleware) Authorization() gin.HandlerFunc {
 				}, apierr.Unauthorized().WithMsg("get user failed").WithErr(err).WithStack())
 				return
 			}
-			roleName = user.RoleName
-			_ = receive.cache.SetString(c, key, user.RoleName, &cache.NeverExpires)
+
+			if len(user.Roles) > 0 {
+				for _, role := range user.Roles {
+					_roleName = append(_roleName, role.Name)
+				}
+				roleName = strings.Join(_roleName, ",")
+			}
+
+			_ = receive.cache.SetString(c, key, roleName, &cache.NeverExpires)
 			if roleName == "" {
 				permissionDenied(c, map[string]any{
 					"error": reason.ErrRoleEmpty.Error(),
@@ -76,24 +84,27 @@ func (receive *AuthorizationMiddleware) Authorization() gin.HandlerFunc {
 		}
 
 		// 判断是否有权限D
-		ok, err := receive.authorizer.EnforceWithCtx(c, roleName, c.Request.URL.Path, c.Request.Method)
-		if err != nil {
-			permissionDenied(c, map[string]any{
-				"error": err.Error(),
-				"code":  http.StatusForbidden,
-				"msg":   AuthFailed,
-			}, apierr.Forbidden().WithMsg("enforce failed").WithErr(err).WithStack())
-			return
+		for i := range _roleName {
+			ok, err := receive.authorizer.EnforceWithCtx(c, _roleName[i], c.Request.URL.Path, c.Request.Method)
+			if err != nil {
+				permissionDenied(c, map[string]any{
+					"error": err.Error(),
+					"code":  http.StatusForbidden,
+					"msg":   AuthFailed,
+				}, apierr.Forbidden().WithMsg("enforce failed").WithErr(err).WithStack())
+				return
+			}
+			if !ok {
+				permissionDenied(c, map[string]any{
+					"error": reason.ErrPermission.Error(),
+					"code":  http.StatusForbidden,
+					"msg":   AuthFailed,
+				}, apierr.Forbidden().WithMsg("no permission").WithErr(reason.ErrPermission).WithStack())
+				logger.WithContext(c, true).Errorf("permission denied, userName: '%s', roleName: '%s', action: '%s', resource: '%s'", claims.UserName, roleName, c.Request.Method, c.Request.URL.Path)
+				return
+			}
 		}
-		if !ok {
-			permissionDenied(c, map[string]any{
-				"error": reason.ErrPermission.Error(),
-				"code":  http.StatusForbidden,
-				"msg":   AuthFailed,
-			}, apierr.Forbidden().WithMsg("no permission").WithErr(reason.ErrPermission).WithStack())
-			logger.WithContext(c, true).Errorf("permission denied, userName: '%s', roleName: '%s', action: '%s', resource: '%s'", claims.UserName, roleName, c.Request.Method, c.Request.URL.Path)
-			return
-		}
+
 		c.Next()
 	}
 }

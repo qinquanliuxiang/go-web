@@ -69,7 +69,7 @@ type UserResponse struct {
 	Mobile    string                `json:"mobile"`
 	RoleName  string                `json:"roleName"`
 	Status    int                   `json:"status"`
-	Role      *model.Role           `json:"role,omitempty"`
+	Roles     []model.Role          `json:"role,omitempty"`
 }
 
 func (receive *UserResponse) ConvertToUserResponse(in *model.User) {
@@ -82,9 +82,8 @@ func (receive *UserResponse) ConvertToUserResponse(in *model.User) {
 	receive.Avatar = in.Avatar
 	receive.Email = in.Email
 	receive.Mobile = in.Mobile
-	receive.RoleName = in.RoleName
 	receive.Status = *in.Status
-	receive.Role = in.Role
+	receive.Roles = in.Roles
 }
 
 type UserListResponse struct {
@@ -95,6 +94,6 @@ type UserListResponse struct {
 }
 
 type UserUpdateRoleRequest struct {
-	ID       int    `uri:"id" validate:"required"`
-	RoleName string `uri:"roleName" validate:"required"`
+	ID        int      `uri:"id" validate:"required"`
+	RoleNames []string `uri:"roleNames" validate:"required"`
 }

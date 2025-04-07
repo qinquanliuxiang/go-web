@@ -54,7 +54,7 @@ func TestRoleLoadUsers(t *testing.T) {
 func TestUserLoadRole(t *testing.T) {
 	InitMysql()
 	store := userstore.NewUserStore(sql)
-	query, err := store.Query(context.Background(), userstore.LoadRole(), userstore.ID(1543503876))
+	query, err := store.Query(context.Background(), userstore.LoadRoles(), userstore.ID(1543503876))
 	if err != nil {
 		return
 	}

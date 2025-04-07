@@ -109,7 +109,7 @@ func (receive *UserCtrl) UpdateRoleHandler(c *gin.Context) {
 	if receive.res.BindAndCheck(c, req, handler.WithCheckUri()) {
 		return
 	}
-	if err := receive.userSvc.UpdateUserRole(c, req); err != nil {
+	if err := receive.userSvc.UserAddRole(c, req); err != nil {
 		receive.res.ResponseFailure(c, err)
 		return
 	}

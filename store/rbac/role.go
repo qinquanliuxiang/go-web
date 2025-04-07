@@ -20,6 +20,12 @@ func RoleName(name string) RoleQueryOption {
 	}
 }
 
+func RoleNames(names []string) RoleQueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		return query.Where("name in (?)", names)
+	}
+}
+
 // RoleID  根据 role id 查询 role
 func RoleID(id int) RoleQueryOption {
 	return func(query *gorm.DB) *gorm.DB {
@@ -164,14 +170,6 @@ func (r *RoleAssociationStore) AppendPolicy(ctx context.Context, role *model.Rol
 	err = r.store.WithContext(ctx).Model(&role).Association("Policys").Append(&appendPolicy)
 	if err != nil {
 		return apierr.InternalServer().WithMsg("failed to append policy").WithErr(err)
-	}
-	return nil
-}
-
-func (r *RoleAssociationStore) ReplacePolicy(ctx context.Context, role *model.Role, policy []model.Policy) (err error) {
-	err = r.store.WithContext(ctx).Model(&role).Association("Policys").Replace(&policy)
-	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to replace policy").WithErr(err)
 	}
 	return nil
 }

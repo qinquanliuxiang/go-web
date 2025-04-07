@@ -22,36 +22,39 @@ import (
 	"qqlx/store/cache"
 	"qqlx/store/rbac"
 	"qqlx/store/userstore"
+	"strings"
 	"time"
 )
 
 type UserSVC struct {
-	generateID *sonyflake.GenerateIDStruct
-	userStore  store.UserStoreInterface
-	roleStore  store.RoleStoreInterface
-	cache      store.CacheInterface
-	casbin     store.CasbinInterface
-	salt       string
-	ldapEnable bool
-	ldap       store.LdapInterface
+	generateID    *sonyflake.GenerateIDStruct
+	userStore     store.UserStoreInterface
+	userRoleStore store.UserRoleStoreInterface
+	roleStore     store.RoleStoreInterface
+	cache         store.CacheInterface
+	casbin        store.CasbinInterface
+	salt          string
+	ldapEnable    bool
+	ldap          store.LdapInterface
 }
 
 func NewUserSVC(
-	generateID *sonyflake.GenerateIDStruct, userStore store.UserStoreInterface, roleStore store.RoleStoreInterface, cache store.CacheInterface, casbin store.CasbinInterface, ldap store.LdapInterface) (*UserSVC, error) {
+	generateID *sonyflake.GenerateIDStruct, userStore store.UserStoreInterface, userRoleStore store.UserRoleStoreInterface, roleStore store.RoleStoreInterface, cache store.CacheInterface, casbin store.CasbinInterface, ldap store.LdapInterface) (*UserSVC, error) {
 	ldapEnable := conf.GetLdapEnable()
 	salt, err := conf.GetSalt()
 	if err != nil {
 		return nil, err
 	}
 	userSvc := &UserSVC{
-		generateID: generateID,
-		userStore:  userStore,
-		roleStore:  roleStore,
-		cache:      cache,
-		casbin:     casbin,
-		salt:       salt,
-		ldap:       ldap,
-		ldapEnable: ldapEnable,
+		generateID:    generateID,
+		userStore:     userStore,
+		userRoleStore: userRoleStore,
+		roleStore:     roleStore,
+		cache:         cache,
+		casbin:        casbin,
+		salt:          salt,
+		ldap:          ldap,
+		ldapEnable:    ldapEnable,
 	}
 	return userSvc, nil
 }
@@ -69,19 +72,6 @@ func (receive *UserSVC) RegistryUser(ctx context.Context, req *schema.UserRegist
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		//var roleExist bool
-		//role, err := receive.roleStore.Query(ctx, rbac.Name(req.Name))
-		//if err != nil {
-		//	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		//		return apierr.InternalServer().WithStack().WithErr(err)
-		//	}
-		//}
-		//if role != nil {
-		//	roleExist = true
-		//}
-		//if !roleExist {
-		//	return apierr.InternalServer().WithMsg("role not exist").WithErr(err)
-		//}
 
 		encryptPassword, err = receive.encryptPassword(ctx, req.Password)
 		if err != nil {
@@ -108,23 +98,6 @@ func (receive *UserSVC) RegistryUser(ctx context.Context, req *schema.UserRegist
 		// 生成 ldap ssha 密码
 		ssha := receive.ldapEncryptSSHA(req.Password)
 		if receive.ldapEnable {
-			// 如果用户组不为空,添加用户到组
-			//if req.Name != "" {
-			//	exist, err := receive.ldap.SearchGroup(ctx, req.Name)
-			//	if err != nil {
-			//		return apierr.InternalServer().WithStack().WithMsg("create user failed").WithErr(err)
-			//	}
-			//	if !exist {
-			//		err = receive.ldap.CreateGroup(ctx, req.Name)
-			//		if err != nil {
-			//			return apierr.InternalServer().WithStack().WithMsg("create user failed").WithErr(err)
-			//		}
-			//	}
-			//	err = receive.ldap.AddUserToGroup(ctx, req.Name, req.Name)
-			//	if err != nil {
-			//		return apierr.InternalServer().WithStack().WithMsg("user add to group failed").WithErr(err)
-			//	}
-			//}
 			// 创建 ldap 用户
 			err = receive.ldap.CreateUser(ctx, req.Name, ssha, req.Email)
 			if err != nil {
@@ -143,7 +116,7 @@ func (receive *UserSVC) Login(ctx context.Context, req *schema.UserLoginRequest)
 	logger.WithContext(ctx, true).Debugf("user login, request: %#v", req)
 	var user *model.User
 	if req.Email != "" {
-		user, err = receive.userStore.Query(ctx, userstore.Email(req.Email), userstore.LoadRole())
+		user, err = receive.userStore.Query(ctx, userstore.Email(req.Email), userstore.LoadRoles())
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, apierr.Unauthorized().WithStack().WithErr(reason.ErrUserNotFound)
@@ -163,9 +136,14 @@ func (receive *UserSVC) Login(ctx context.Context, req *schema.UserLoginRequest)
 	if !receive.verifyPassword(ctx, req.Password, user.Password) {
 		return nil, apierr.Unauthorized().WithStack().WithErr(reason.ErrInvalidPassword)
 	}
-
-	if user.RoleName != "" {
-		err = receive.cache.SetString(ctx, constant.RoleCacheKeyPrefix+user.Name, user.Role.Name, &cache.NeverExpires)
+	roleCount := len(user.Roles)
+	if roleCount > 0 {
+		rolesName := make([]string, 0, roleCount)
+		for _, role := range user.Roles {
+			rolesName = append(rolesName, role.Name)
+		}
+		roleNames := strings.Join(rolesName, ",")
+		err = receive.cache.SetString(ctx, constant.RoleCacheKeyPrefix+user.Name, roleNames, &cache.NeverExpires)
 		if err != nil {
 			return nil, err
 		}
@@ -230,10 +208,6 @@ func (receive *UserSVC) DisableUser(ctx context.Context, req *schema.UserIDReque
 		if err != nil {
 			return err
 		}
-		//err = receive.ldap.RemoveUserFromGroup(ctx, user.Name, user.Name)
-		//if err != nil {
-		//	return err
-		//}
 	}
 	return nil
 }
@@ -241,7 +215,7 @@ func (receive *UserSVC) DisableUser(ctx context.Context, req *schema.UserIDReque
 func (receive *UserSVC) EnableUser(ctx context.Context, req *schema.UserEnableRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("user enable, request: %#v", req)
 	var user *model.User
-	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
+	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID), userstore.LoadRoles())
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
@@ -271,10 +245,14 @@ func (receive *UserSVC) EnableUser(ctx context.Context, req *schema.UserEnableRe
 		if err != nil {
 			return err
 		}
-		if user.RoleName != "" {
-			err = receive.ldap.AddUserToGroup(ctx, user.RoleName, user.Name)
-			if err != nil {
-				return err
+
+		roleCount := len(user.Roles)
+		if roleCount > 0 {
+			for _, role := range user.Roles {
+				err = receive.ldap.AddUserToGroup(ctx, role.Name, user.Name)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -350,14 +328,11 @@ func (receive *UserSVC) UpdateUser(ctx context.Context, req *schema.UserUpdateRe
 	return receive.userStore.Save(ctx, user)
 }
 
-// UpdateUserRole 更新用户角色
-func (receive *UserSVC) UpdateUserRole(ctx context.Context, req *schema.UserUpdateRoleRequest) (err error) {
+// UserAddRole 增加用户角色
+func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateRoleRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("user update role, request: %#v", req)
-	var (
-		user        *model.User
-		oldRoleName string
-	)
-	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID), userstore.LoadRole())
+	var user *model.User
+	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
@@ -369,27 +344,33 @@ func (receive *UserSVC) UpdateUserRole(ctx context.Context, req *schema.UserUpda
 		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
 	}
 
-	if user.RoleName == req.RoleName {
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserHasSameRole)
-	}
-	oldRoleName = user.RoleName
-	user.RoleName = req.RoleName
-	user.Role = nil
-	role, err := receive.roleStore.Query(ctx, rbac.RoleName(req.RoleName))
+	roleCount := len(req.RoleNames)
+	_, list, err := receive.roleStore.List(ctx, 1, roleCount, rbac.RoleNames(req.RoleNames))
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().WithStack().WithErr(reason.ErrRoleNotFound)
-		}
 		return err
 	}
+
+	if len(list) != roleCount {
+		listNames := make([]string, 0, len(list))
+		for _, role := range list {
+			listNames = append(listNames, role.Name)
+		}
+		uniqRole := helpers.GetUnique(listNames, req.RoleNames)
+		return apierr.InternalServer().WithStack().WithErr(reason.ErrRoleNotFound).WithMsg(fmt.Sprintf("role not exist: %s", strings.Join(uniqRole, ",")))
+	}
+
+	saveRolesName := strings.Join(req.RoleNames, ",")
 	userCache := helpers.GetRoleCacheKey(user.Name)
 	if err = receive.cache.Del(ctx, userCache); err != nil {
 		return err
 	}
-	if err = receive.userStore.Save(ctx, user); err != nil {
+
+	err = receive.userRoleStore.AppendRoles(ctx, user, list)
+	if err != nil {
 		return err
 	}
-	if err = receive.cache.SetString(ctx, userCache, role.Name, &cache.NeverExpires); err != nil {
+
+	if err = receive.cache.SetString(ctx, userCache, saveRolesName, &cache.NeverExpires); err != nil {
 		return err
 	}
 
@@ -401,25 +382,97 @@ func (receive *UserSVC) UpdateUserRole(ctx context.Context, req *schema.UserUpda
 	}()
 
 	if receive.ldapEnable {
-		if oldRoleName != "" {
-			err = receive.ldap.RemoveUserFromGroup(ctx, oldRoleName, user.Name)
+		for _, roleName := range req.RoleNames {
+			var exist bool
+			exist, err = receive.ldap.SearchGroup(ctx, roleName)
+			if err != nil {
+				return err
+			}
+			if !exist {
+				err = receive.ldap.CreateGroup(ctx, roleName)
+				if err != nil {
+					return err
+				}
+			}
+			err = receive.ldap.AddUserToGroup(ctx, roleName, user.Name)
 			if err != nil {
 				return err
 			}
 		}
-		exist, err := receive.ldap.SearchGroup(ctx, req.RoleName)
-		if err != nil {
+	}
+	return
+}
+
+func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpdateRoleRequest) (err error) {
+	logger.WithContext(ctx, true).Debugf("user remove role, request: %#v", req)
+	var user *model.User
+	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+		}
+		return err
+	}
+
+	if *user.Status == model.UserStatusDisable {
+		logger.WithContext(ctx, true).Errorf("user has been disabled, userName: %s", user.Name)
+		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+	}
+
+	roleCount := len(req.RoleNames)
+	_, list, err := receive.roleStore.List(ctx, 1, roleCount, rbac.RoleNames(req.RoleNames))
+	if err != nil {
+		return err
+	}
+
+	if len(list) != roleCount {
+		listNames := make([]string, 0, len(list))
+		for _, role := range list {
+			listNames = append(listNames, role.Name)
+		}
+		uniqRole := helpers.GetUnique(listNames, req.RoleNames)
+		return apierr.InternalServer().WithStack().WithErr(reason.ErrRoleNotFound).WithMsg(fmt.Sprintf("role not exist: %s", strings.Join(uniqRole, ",")))
+	}
+
+	userCache := helpers.GetRoleCacheKey(user.Name)
+	if err = receive.cache.Del(ctx, userCache); err != nil {
+		return err
+	}
+
+	err = receive.userRoleStore.DeleteRoles(ctx, user, list)
+	if err != nil {
+		return err
+	}
+
+	query, err := receive.userStore.Query(ctx, userstore.ID(user.ID), userstore.LoadRoles())
+	if err != nil {
+		return err
+	}
+	queryRoleCount := len(query.Roles)
+	if queryRoleCount > 0 {
+		_roleNames := make([]string, 0, queryRoleCount)
+		for _, role := range query.Roles {
+			_roleNames = append(_roleNames, role.Name)
+		}
+		roleNames := strings.Join(_roleNames, ",")
+		if err = receive.cache.SetString(ctx, userCache, roleNames, &cache.NeverExpires); err != nil {
 			return err
 		}
-		if !exist {
-			err = receive.ldap.CreateGroup(ctx, req.RoleName)
+	}
+
+	go func() {
+		time.Sleep(time.Millisecond * 200)
+		if err = receive.cache.Del(ctx, userCache); err != nil {
+			logger.WithContext(ctx, true).Error(err)
+		}
+	}()
+
+	if receive.ldapEnable {
+		for _, roleName := range req.RoleNames {
+			err = receive.ldap.RemoveUserFromGroup(ctx, roleName, user.Name)
 			if err != nil {
 				return err
 			}
-		}
-		err = receive.ldap.AddUserToGroup(ctx, req.RoleName, user.Name)
-		if err != nil {
-			return err
 		}
 	}
 	return
@@ -428,7 +481,7 @@ func (receive *UserSVC) UpdateUserRole(ctx context.Context, req *schema.UserUpda
 // Info 获取用户信息
 func (receive *UserSVC) Info(ctx context.Context, id int) (res *schema.UserResponse, err error) {
 	logger.WithContext(ctx, true).Debugf("user info, request: %#v", id)
-	user, err := receive.userStore.Query(ctx, userstore.ID(id), userstore.LoadRole(), userstore.LoadRolePolicy())
+	user, err := receive.userStore.Query(ctx, userstore.ID(id), userstore.LoadRoles(), userstore.LoadRolePolicy())
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)

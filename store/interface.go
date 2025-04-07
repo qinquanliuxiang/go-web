@@ -72,6 +72,22 @@ type UserStoreInterface interface {
 	List(ctx context.Context, page, pageSize int, options ...userstore.QueryOption) (total int64, users []model.User, err error)
 }
 
+// UserRoleStoreInterface 用户角色关系
+type UserRoleStoreInterface interface {
+	// AppendRoles 用户追加角色
+	//
+	// @param user 用户, 追加角色的用户
+	// @param roles 角色
+	// @return err 错误
+	AppendRoles(ctx context.Context, user *model.User, roles []model.Role) (err error)
+	// DeleteRoles 用户删除角色
+	//
+	// @param user 用户, 删除角色的用户
+	// @param roles 角色
+	// @return err 错误
+	DeleteRoles(ctx context.Context, user *model.User, roles []model.Role) (err error)
+}
+
 // RoleStoreInterface 角色CRUD
 type RoleStoreInterface interface {
 	// Query 查询角色
@@ -99,11 +115,7 @@ type RolePolicyStoreInterface interface {
 	// @param policy 策略, 需要追加的策略
 	// @return err 错误
 	AppendPolicy(ctx context.Context, role *model.Role, policy []model.Policy) (err error)
-	// ReplacePolicy 替换策略
-	//
-	// @param role 角色, 替换策略的角色
-	// @param policy 策略, 需要替换的策略
-	ReplacePolicy(ctx context.Context, role *model.Role, policy []model.Policy) (err error)
+
 	// DeletePolicy 删除策略
 	//
 	// @param role 角色, 删除策略的角色

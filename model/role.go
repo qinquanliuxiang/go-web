@@ -12,7 +12,7 @@ type Role struct {
 	Name        string                `gorm:"comment:角色名称;uniqueIndex;size:50"`
 	Description string                `gorm:"comment:角色描述;size:1024"`
 	Policys     []Policy              `gorm:"many2many:role_policy;" json:"policys,omitempty"`
-	Users       []User                `gorm:"foreignKey:RoleName;references:Name" json:"users,omitempty"`
+	Users       []User                `gorm:"many2many:user_role;" json:"users,omitempty"`
 }
 
 func (receiver *Role) TableName() string {

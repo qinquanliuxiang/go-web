@@ -188,7 +188,7 @@ func initData(cf string) {
 		zap.S().Error(err)
 		return
 	}
-	err = userSvc.UpdateUserRole(ctxValue, &schema.UserUpdateRoleRequest{ID: adminUser.ID, RoleName: "admin"})
+	err = userSvc.UserAddRole(ctxValue, &schema.UserUpdateRoleRequest{ID: adminUser.ID, RoleName: "admin"})
 	if err != nil {
 		zap.S().Error(err)
 	}
