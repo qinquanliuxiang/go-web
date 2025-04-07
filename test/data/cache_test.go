@@ -17,3 +17,19 @@ func TestCacge(t *testing.T) {
 	// 	t.Logf("del err: %v", err)
 	// }
 }
+
+func TestCacge2(t *testing.T) {
+	InitCli()
+	defer f()
+	err := cacheImpl.SetSlice(ctx, "test", []any{1, 2, 3}, nil)
+	if err != nil {
+		t.Fatalf("set err: %v", err)
+	}
+	t.Logf("set success")
+
+	slice, err := cacheImpl.GetSlice(ctx, "test")
+	if err != nil {
+		t.Fatalf("get err: %v", err)
+	}
+	t.Logf("get success: %v", slice)
+}

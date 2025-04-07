@@ -42,6 +42,7 @@ func InitApplication(ctx context.Context) (*app.Application, func(), error) {
 		return nil, nil, err
 	}
 	userstoreStore := userstore.NewUserStore(db)
+	userAssociationStore := userstore.NewUserAssociationStore(db)
 	roleStore := rbac.NewRoleStore(db)
 	enforcer, err := data.InitCasbin()
 	if err != nil {
@@ -63,7 +64,7 @@ func InitApplication(ctx context.Context) (*app.Application, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	userSVC, err := service.NewUserSVC(generateIDStruct, userstoreStore, roleStore, store, casbinStore, ldapStore)
+	userSVC, err := service.NewUserSVC(generateIDStruct, userstoreStore, userAssociationStore, roleStore, store, casbinStore, ldapStore)
 	if err != nil {
 		cleanup3()
 		cleanup2()

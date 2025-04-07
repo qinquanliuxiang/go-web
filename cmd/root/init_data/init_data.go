@@ -95,6 +95,7 @@ func initData(cf string) {
 	}
 	casbinStore := rbac.NewCasbinStore(enforcer)
 	userRepo := userstore.NewUserStore(db)
+	userRoleStore := userstore.NewUserAssociationStore(db)
 	roleRepo := rbac.NewRoleStore(db)
 	cacheStore, f1, err := cache.NewStore(redisCli)
 	defer f1()
@@ -170,7 +171,7 @@ func initData(cf string) {
 		zap.S().Error(err)
 	}
 
-	userSvc, err := service.NewUserSVC(generateIDStruct, userRepo, roleRepo, cacheStore, casbinStore, ldapStore)
+	userSvc, err := service.NewUserSVC(generateIDStruct, userRepo, userRoleStore, roleRepo, cacheStore, casbinStore, ldapStore)
 	if err != nil {
 		logger.Caller().Error(err)
 		return
@@ -188,7 +189,7 @@ func initData(cf string) {
 		zap.S().Error(err)
 		return
 	}
-	err = userSvc.UserAddRole(ctxValue, &schema.UserUpdateRoleRequest{ID: adminUser.ID, RoleName: "admin"})
+	err = userSvc.UserAddRole(ctxValue, &schema.UserUpdateRoleRequest{ID: adminUser.ID, RoleNames: []string{"admin"}})
 	if err != nil {
 		zap.S().Error(err)
 	}

@@ -138,12 +138,11 @@ func (receive *UserSVC) Login(ctx context.Context, req *schema.UserLoginRequest)
 	}
 	roleCount := len(user.Roles)
 	if roleCount > 0 {
-		rolesName := make([]string, 0, roleCount)
+		rolesName := make([]any, 0, roleCount)
 		for _, role := range user.Roles {
 			rolesName = append(rolesName, role.Name)
 		}
-		roleNames := strings.Join(rolesName, ",")
-		err = receive.cache.SetString(ctx, constant.RoleCacheKeyPrefix+user.Name, roleNames, &cache.NeverExpires)
+		err = receive.cache.SetSlice(ctx, constant.RoleCacheKeyPrefix+user.Name, rolesName, &cache.NeverExpires)
 		if err != nil {
 			return nil, err
 		}
@@ -349,17 +348,17 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 	if err != nil {
 		return err
 	}
-
+	listNames := make([]any, 0, len(list))
+	_listNames := make([]string, 0, len(list))
+	for _, role := range list {
+		_listNames = append(_listNames, role.Name)
+		listNames = append(listNames, role.Name)
+	}
 	if len(list) != roleCount {
-		listNames := make([]string, 0, len(list))
-		for _, role := range list {
-			listNames = append(listNames, role.Name)
-		}
-		uniqRole := helpers.GetUnique(listNames, req.RoleNames)
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrRoleNotFound).WithMsg(fmt.Sprintf("role not exist: %s", strings.Join(uniqRole, ",")))
+		uniqRole := helpers.GetUnique(_listNames, req.RoleNames)
+		return apierr.InternalServer().WithStack().WithErr(reason.ErrRoleNotFound).WithMsg(fmt.Sprintf("role not exist: %v", uniqRole))
 	}
 
-	saveRolesName := strings.Join(req.RoleNames, ",")
 	userCache := helpers.GetRoleCacheKey(user.Name)
 	if err = receive.cache.Del(ctx, userCache); err != nil {
 		return err
@@ -370,7 +369,7 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 		return err
 	}
 
-	if err = receive.cache.SetString(ctx, userCache, saveRolesName, &cache.NeverExpires); err != nil {
+	if err = receive.cache.SetSlice(ctx, userCache, listNames, &cache.NeverExpires); err != nil {
 		return err
 	}
 
@@ -450,12 +449,11 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 	}
 	queryRoleCount := len(query.Roles)
 	if queryRoleCount > 0 {
-		_roleNames := make([]string, 0, queryRoleCount)
+		roleNames := make([]any, 0, queryRoleCount)
 		for _, role := range query.Roles {
-			_roleNames = append(_roleNames, role.Name)
+			roleNames = append(roleNames, role.Name)
 		}
-		roleNames := strings.Join(_roleNames, ",")
-		if err = receive.cache.SetString(ctx, userCache, roleNames, &cache.NeverExpires); err != nil {
+		if err = receive.cache.SetSlice(ctx, userCache, roleNames, &cache.NeverExpires); err != nil {
 			return err
 		}
 	}

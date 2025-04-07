@@ -6,5 +6,7 @@ import (
 )
 
 func TestCreateTable(t *testing.T) {
+	InitCli()
+	defer f()
 	db.AutoMigrate(&model.User{}, &model.Role{}, &model.Policy{})
 }

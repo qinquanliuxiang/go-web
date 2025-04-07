@@ -40,6 +40,35 @@ func NewStore(client *redis.Client) (*Store, func(), error) {
 	}, closeup, nil
 }
 
+func (c *Store) GetSlice(ctx context.Context, key string) ([]string, error) {
+	saveKey := fmt.Sprintf("%s:%s", c.keyPrefix, key)
+	result, err := c.client.LRange(ctx, saveKey, 0, -1).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, nil
+		}
+		return nil, apierr.InternalServer().WithMsg("redis get slice failed").WithErr(err).WithStack()
+	}
+	return result, nil
+}
+
+func (c *Store) SetSlice(ctx context.Context, key string, value []any, expireTime *time.Duration) error {
+	saveKey := fmt.Sprintf("%s:%s", c.keyPrefix, key)
+	if expireTime == nil {
+		if err := c.client.RPush(ctx, saveKey, value...).Err(); err != nil {
+			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+		}
+		return nil
+	}
+	if expireTime == &NeverExpires {
+		if err := c.client.RPush(ctx, saveKey, value...).Err(); err != nil {
+			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+		}
+		return nil
+	}
+	return nil
+}
+
 func (c *Store) GetString(ctx context.Context, key string) (string, error) {
 	saveKey := fmt.Sprintf("%s:%s", c.keyPrefix, key)
 	if v, err := c.client.Get(ctx, saveKey).Result(); err != nil {

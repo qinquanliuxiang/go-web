@@ -95,5 +95,5 @@ type UserListResponse struct {
 
 type UserUpdateRoleRequest struct {
 	ID        int      `uri:"id" validate:"required"`
-	RoleNames []string `uri:"roleNames" validate:"required"`
+	RoleNames []string `json:"roleNames" validate:"required"`
 }

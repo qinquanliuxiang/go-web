@@ -145,6 +145,9 @@ type PolicyStoreInterface interface {
 
 // CacheInterface 缓存
 type CacheInterface interface {
+	GetSlice(ctx context.Context, key string) ([]string, error)
+
+	SetSlice(ctx context.Context, key string, value []any, expireTime *time.Duration) error
 	// GetString 获取字符串
 	//
 	// @param key 键

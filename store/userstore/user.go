@@ -40,7 +40,7 @@ func SortByCreatedDesc() QueryOption {
 	}
 }
 
-// LoadRoles 用户预加载 Role
+// LoadRoles 用户预加载 Roles
 func LoadRoles() QueryOption {
 	return func(query *gorm.DB) *gorm.DB {
 		return query.Preload("Roles")
@@ -195,7 +195,7 @@ func NewUserAssociationStore(store *gorm.DB) *UserAssociationStore {
 func (r *UserAssociationStore) AppendRoles(ctx context.Context, user *model.User, appendRoles []model.Role) (err error) {
 	err = r.store.WithContext(ctx).Model(&user).Association("Roles").Append(&appendRoles)
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to append roles").WithErr(err)
+		return apierr.InternalServer().WithMsg("failed to append roles").WithErr(err).WithStack()
 	}
 	return nil
 }
