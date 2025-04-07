@@ -38,7 +38,8 @@ func (a *ApiRoute) RegisterApiUserRoute(r *gin.RouterGroup, authorization *middl
 			userGroup.PUT("", a.userCtrl.UpdateHandler)
 			userGroup.GET("/info", a.userCtrl.InfoHandler)
 			userGroup.GET("/:id", authorization.Authorization(), a.userCtrl.GetUserInfoHandler)
-			userGroup.DELETE("/:id", authorization.Authorization(), a.userCtrl.DeleteHandler)
+			userGroup.DELETE("/:id", authorization.Authorization(), a.userCtrl.DisableHandler)
+			userGroup.PUT("/enable/:id", a.userCtrl.EnableHandler)
 			userGroup.PUT("/:id/:roleName", authorization.Authorization(), a.userCtrl.UpdateRoleHandler)
 		}
 	}

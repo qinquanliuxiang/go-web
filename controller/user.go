@@ -68,19 +68,6 @@ func (receive *UserCtrl) LogoutHandler(c *gin.Context) {
 	receive.res.ResponseSuccess(c, nil)
 }
 
-//func (receive *UserCtrl) SearchHandler(c *gin.Context) {
-//	req := new(schema.UserSearchRequest)
-//	if receive.res.BindAndCheck(c, req, handler.WithCheckQuery()) {
-//		return
-//	}
-//	res, err := receive.userSvc.SearchUserByEmail(c, req)
-//	if err != nil {
-//		receive.res.ResponseFailure(c, err)
-//		return
-//	}
-//	receive.res.ResponseSuccess(c, res)
-//}
-
 func (receive *UserCtrl) UpdateHandler(c *gin.Context) {
 	req := new(schema.UserUpdateRequest)
 	if receive.res.BindAndCheck(c, req, handler.WithCheckJson()) {
@@ -129,12 +116,24 @@ func (receive *UserCtrl) UpdateRoleHandler(c *gin.Context) {
 	receive.res.ResponseSuccess(c, nil)
 }
 
-func (receive *UserCtrl) DeleteHandler(c *gin.Context) {
+func (receive *UserCtrl) DisableHandler(c *gin.Context) {
 	req := new(schema.UserIDRequest)
 	if receive.res.BindAndCheck(c, req, handler.WithCheckUri()) {
 		return
 	}
-	if err := receive.userSvc.DeleteUser(c, req); err != nil {
+	if err := receive.userSvc.DisableUser(c, req); err != nil {
+		receive.res.ResponseFailure(c, err)
+		return
+	}
+	receive.res.ResponseSuccess(c, nil)
+}
+
+func (receive *UserCtrl) EnableHandler(c *gin.Context) {
+	req := new(schema.UserEnableRequest)
+	if receive.res.BindAndCheck(c, req, handler.WithCheckUri(), handler.WithCheckJson()) {
+		return
+	}
+	if err := receive.userSvc.EnableUser(c, req); err != nil {
 		receive.res.ResponseFailure(c, err)
 		return
 	}

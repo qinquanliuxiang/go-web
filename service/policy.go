@@ -94,7 +94,7 @@ func (receive *PolicySVC) UpdatePolicy(ctx context.Context, req *schema.PolicyUp
 
 func (receive *PolicySVC) List(ctx context.Context, req *schema.PolicyListRequest) (res *schema.PolicyListResponse, err error) {
 	logger.WithContext(ctx, false).Debugf("policy list, request: %#v", req)
-	total, polices, err := receive.policyStore.List(ctx, req.Page, req.PageSize)
+	total, polices, err := receive.policyStore.List(ctx, req.Page, req.PageSize, rbac.PolicySortByCreatedDesc())
 	if err != nil {
 		return nil, err
 	}

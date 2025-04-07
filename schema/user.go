@@ -8,6 +8,12 @@ import (
 type UserIDRequest struct {
 	ID int `uri:"id" validate:"required,gte=1"`
 }
+
+type UserEnableRequest struct {
+	ID       int    `uri:"id" validate:"required,gte=1"`
+	Password string `json:"password" validate:"required,min=8"`
+}
+
 type UserListRequest struct {
 	Page     int    `form:"page" validate:"required,gt=0"`
 	PageSize int    `form:"pageSize" validate:"required,gt=0"`

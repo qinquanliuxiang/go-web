@@ -31,6 +31,13 @@ func PolicyID(id int) PolicyQueryOption {
 	}
 }
 
+// PolicySortByCreatedDesc 按照创建时间倒序
+func PolicySortByCreatedDesc() PolicyQueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		return query.Order("created_at desc")
+	}
+}
+
 // InPolicy 根据 policy id 列表查询
 func InPolicy(ids []int) PolicyQueryOption {
 	return func(query *gorm.DB) *gorm.DB {

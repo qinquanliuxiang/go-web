@@ -30,10 +30,16 @@ var polices = []schema.PolicyCreateRequest{
 		Describe: "根据id获取用户信息",
 	},
 	{
-		Name:     "deleteUser",
+		Name:     "disableUser",
 		Path:     "/api/v1/users/:id",
 		Method:   "DELETE",
 		Describe: "删除用户",
+	},
+	{
+		Name:     "enableUser",
+		Path:     "/api/v1/users/enable/:id",
+		Method:   "PUT",
+		Describe: "启用用户",
 	},
 	{
 		Name:     "updateUserRole",

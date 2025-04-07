@@ -238,7 +238,7 @@ func (receive *RoleSVC) DeleteByPolicy(ctx context.Context, req *schema.RolePoli
 
 func (receive *RoleSVC) ListRole(ctx context.Context, req *schema.RoleListRequest) (data *schema.RoleListResponse, err error) {
 	logger.WithContext(ctx, true).Debugf("role list, request: %#v", req)
-	total, roles, err := receive.roleStore.List(ctx, req.Page, req.PageSize)
+	total, roles, err := receive.roleStore.List(ctx, req.Page, req.PageSize, rbac.RoleSortByCreatedDesc())
 	if err != nil {
 		return nil, err
 	}

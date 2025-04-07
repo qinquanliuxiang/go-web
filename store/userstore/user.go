@@ -33,6 +33,13 @@ func Email(email string) QueryOption {
 	}
 }
 
+// SortByCreatedDesc 按照创建时间倒序
+func SortByCreatedDesc() QueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		return query.Order("created_at desc")
+	}
+}
+
 // LoadRole 用户预加载 Role
 func LoadRole() QueryOption {
 	return func(query *gorm.DB) *gorm.DB {

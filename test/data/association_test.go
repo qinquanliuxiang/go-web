@@ -57,7 +57,7 @@ func TestAssociation(t *testing.T) {
 	// }
 
 	// 删除关联，只会删除中间表的记录。被删除表的记录不会被删除
-	// if err := db.Model(&role).Association("Policys").DeleteHandler([]*model.Policy{
+	// if err := db.Model(&role).Association("Policys").DisableHandler([]*model.Policy{
 	// 	{
 	// 		MetaData: &model.MetaData{
 	// 			ID: 8,

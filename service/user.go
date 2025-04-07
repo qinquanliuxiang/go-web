@@ -198,31 +198,7 @@ func (receive *UserSVC) Logout(ctx context.Context, id int) (err error) {
 	return nil
 }
 
-//func (receive *UserSVC) SearchUserByEmail(ctx context.Context, req *schema.UserSearchRequest) (res []schema.UserResponse, err error) {
-//	logger.WithContext(ctx, true).Debugf("user search, request: %#v", req)
-//	if req.Limit == 0 || req.Limit > 100 {
-//		req.Limit = 20 // 默认限制
-//	}
-//	if req.Keyword != "name" && req.Keyword != "email" {
-//		return nil, apierr.InternalServer().WithStack().WithErr(reason.ErrUserSearch).WithMsg("keyword must be name or email")
-//	}
-//
-//	users, err := receive.userStore.Querys(ctx, userstore.QueryByNameOrEmail(ctx, req.Keyword, req.Value, req.Limit))
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	if len(users) == 0 {
-//		return nil, apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound).WithMsg(fmt.Sprintf("search user failed, keyword: %s, value: %s", req.Keyword, req.Value))
-//	}
-//	res = make([]schema.UserResponse, 0, len(users))
-//	for i := range res {
-//		res[i].ConvertToUserResponse(&users[i])
-//	}
-//	return res, nil
-//}
-
-func (receive *UserSVC) DeleteUser(ctx context.Context, req *schema.UserIDRequest) (err error) {
+func (receive *UserSVC) DisableUser(ctx context.Context, req *schema.UserIDRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("user delete, request: %#v", req)
 	var user *model.User
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
@@ -258,6 +234,49 @@ func (receive *UserSVC) DeleteUser(ctx context.Context, req *schema.UserIDReques
 		//if err != nil {
 		//	return err
 		//}
+	}
+	return nil
+}
+
+func (receive *UserSVC) EnableUser(ctx context.Context, req *schema.UserEnableRequest) (err error) {
+	logger.WithContext(ctx, true).Debugf("user enable, request: %#v", req)
+	var user *model.User
+	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+		}
+		return err
+	}
+	if *user.Status != model.UserStatusDisable {
+		logger.WithContext(ctx, true).Errorf("user has been enabled, userName: %s", user.Name)
+		return nil
+	}
+
+	user.Status = &model.UserStatusAvailable
+	password, err := receive.encryptPassword(ctx, req.Password)
+	if err != nil {
+		return err
+	}
+
+	user.Password = password
+	err = receive.userStore.Save(ctx, user)
+	if err != nil {
+		return err
+	}
+
+	if receive.ldapEnable {
+		ldapPassword := receive.ldapEncryptSSHA(req.Password)
+		err = receive.ldap.CreateUser(ctx, user.Name, ldapPassword, user.Email)
+		if err != nil {
+			return err
+		}
+		if user.RoleName != "" {
+			err = receive.ldap.AddUserToGroup(ctx, user.RoleName, user.Name)
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -433,7 +452,7 @@ func (receive *UserSVC) ListUser(ctx context.Context, req *schema.UserListReques
 		options = append(options, userstore.QueryByNameOrEmail(req.Keyword, req.Value))
 	}
 	// 过滤状态
-	options = append(options, userstore.Status(req.Status))
+	options = append(options, userstore.Status(req.Status), userstore.SortByCreatedDesc())
 
 	total, users, err := receive.userStore.List(ctx, req.Page, req.PageSize, options...)
 	if err != nil {

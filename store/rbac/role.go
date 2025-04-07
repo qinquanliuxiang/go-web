@@ -27,6 +27,13 @@ func RoleID(id int) RoleQueryOption {
 	}
 }
 
+// RoleSortByCreatedDesc 按照创建时间倒序
+func RoleSortByCreatedDesc() RoleQueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		return query.Order("created_at desc")
+	}
+}
+
 // LoadPolices role 设置预加载 Policys
 func LoadPolices() RoleQueryOption {
 	return func(query *gorm.DB) *gorm.DB {
