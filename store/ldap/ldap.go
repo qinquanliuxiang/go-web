@@ -3,13 +3,14 @@ package ldap
 import (
 	"context"
 	"fmt"
-	"github.com/go-ldap/ldap/v3"
 	"qqlx/base/apierr"
 	"qqlx/base/conf"
 	"qqlx/base/logger"
 	"qqlx/base/reason"
 	"qqlx/model"
 	"regexp"
+
+	"github.com/go-ldap/ldap/v3"
 )
 
 type Store struct {

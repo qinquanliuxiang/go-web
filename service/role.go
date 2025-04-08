@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"qqlx/base/apierr"
 	"qqlx/base/conf"
 	"qqlx/base/helpers"
@@ -15,6 +14,8 @@ import (
 	"qqlx/schema"
 	"qqlx/store"
 	"qqlx/store/rbac"
+
+	"gorm.io/gorm"
 )
 
 type RoleSVC struct {
@@ -164,30 +165,27 @@ func (receive *RoleSVC) AddByPolicy(ctx context.Context, req *schema.RolePolicyR
 		return apierr.InternalServer().WithErr(reason.ErrAdminRole).WithStack()
 	}
 
-	_, reqPolices, err := receive.policyStore.List(ctx, 1, len(reqPolicesIDs), rbac.InPolicy(reqPolicesIDs))
+	_, list, err := receive.policyStore.List(ctx, 1, len(reqPolicesIDs), rbac.InPolicy(reqPolicesIDs))
 	if err != nil {
 		return err
 	}
-	if len(reqPolices) == 0 {
+	if len(list) == 0 {
 		return apierr.InternalServer().WithMsg(fmt.Sprintf("policy %v not exists", reqPolicesIDs)).WithErr(reason.ErrPolicyNotFound)
 	}
-	if len(reqPolices) != len(reqPolicesIDs) {
-		// 获取不存在的策略
-		dbPoliceIDs := make([]int, len(reqPolices))
-		for i, p := range reqPolices {
-			dbPoliceIDs[i] = p.ID
-		}
-		notExistsIds := helpers.GetUnique(dbPoliceIDs, reqPolicesIDs)
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("policy %v not exists", notExistsIds)).WithErr(fmt.Errorf("policy not exists"))
+
+	notFound := helpers.FindMissingByID(list, req.PolicyIds)
+	if len(notFound) > 0 {
+		return apierr.InternalServer().WithMsg(fmt.Sprintf("policyID %v not exists", notFound)).WithErr(fmt.Errorf("policy not exists")).WithStack()
 	}
+
 	// role 追加策略
-	err = receive.appendPolicyStore.AppendPolicy(ctx, role, reqPolices)
+	err = receive.appendPolicyStore.AppendPolicy(ctx, role, list)
 	if err != nil {
 		return err
 	}
 	// 更新 casbin 策略
-	save := helpers.GetCasbinRole(role.Name, reqPolices)
-	return receive.casbinStore.CreateRolePolices(ctx, save)
+	saveCasbin := helpers.GetCasbinRole(role.Name, list)
+	return receive.casbinStore.CreateRolePolices(ctx, saveCasbin)
 }
 
 // DeleteByPolicy 删除角色权限
@@ -209,31 +207,27 @@ func (receive *RoleSVC) DeleteByPolicy(ctx context.Context, req *schema.RolePoli
 	}
 
 	// 获取数据库中的策略
-	_, reqPolices, err := receive.policyStore.List(ctx, 1, len(policesID), rbac.InPolicy(policesID))
+	_, list, err := receive.policyStore.List(ctx, 1, len(policesID), rbac.InPolicy(policesID))
 	if err != nil {
 		return err
 	}
-	if len(reqPolices) == 0 {
+	if len(list) == 0 {
 		return apierr.InternalServer().WithMsg(fmt.Sprintf("policy %v not exists", policesID)).WithErr(reason.ErrPolicyNotFound).WithStack()
 	}
-	// 如果获取到的策略和请求的策略不一致, 那么返回不存在的策略
-	if len(reqPolices) != len(policesID) {
-		reqPoliceIds := make([]int, len(reqPolices))
-		for i := range reqPolices {
-			reqPoliceIds[i] = reqPolices[i].ID
-		}
-		notExistsIds := helpers.GetUnique(reqPoliceIds, policesID)
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("policy %v not exists", notExistsIds)).WithErr(fmt.Errorf("policy not exists"))
+
+	notFound := helpers.FindMissingByID(list, req.PolicyIds)
+	if len(notFound) > 0 {
+		return apierr.InternalServer().WithMsg(fmt.Sprintf("policyID %v not exists", notFound)).WithErr(fmt.Errorf("policy not exists")).WithStack()
 	}
 
 	// 删除策略
-	if err = receive.appendPolicyStore.DeletePolicy(ctx, role, reqPolices); err != nil {
+	if err = receive.appendPolicyStore.DeletePolicy(ctx, role, list); err != nil {
 		return err
 	}
 
 	// 删除 casbin 策略
-	deleteRole := helpers.GetCasbinRole(role.Name, reqPolices)
-	return receive.casbinStore.DeleteRolePolices(ctx, deleteRole)
+	deleteCasbin := helpers.GetCasbinRole(role.Name, list)
+	return receive.casbinStore.DeleteRolePolices(ctx, deleteCasbin)
 }
 
 func (receive *RoleSVC) ListRole(ctx context.Context, req *schema.RoleListRequest) (data *schema.RoleListResponse, err error) {

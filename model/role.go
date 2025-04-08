@@ -18,3 +18,7 @@ type Role struct {
 func (receiver *Role) TableName() string {
 	return "roles"
 }
+
+func (receiver Role) GetName() string {
+	return receiver.Name
+}

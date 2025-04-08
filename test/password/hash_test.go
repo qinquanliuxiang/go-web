@@ -78,7 +78,7 @@ func TestLdapSha256Crypt(t *testing.T) {
 	}
 	defer f3()
 	generateID := sonyflake.NewGenerateID(context.Background(), cacheStore)
-	userSVC, err := service.NewUserSVC(generateID, userStore, nil, cacheStore, nil, ldapStore)
+	userSVC, err := service.NewUserSVC(generateID, userStore, nil, nil, cacheStore, nil, ldapStore)
 	if err != nil {
 		t.Fatalf("new user svc faild: %v", err)
 	}

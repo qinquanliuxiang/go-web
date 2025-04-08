@@ -104,12 +104,24 @@ func (receive *UserCtrl) UpdatePasswordHandler(c *gin.Context) {
 	receive.res.ResponseSuccess(c, nil)
 }
 
-func (receive *UserCtrl) UpdateRoleHandler(c *gin.Context) {
+func (receive *UserCtrl) AddRoleHandler(c *gin.Context) {
 	req := new(schema.UserUpdateRoleRequest)
-	if receive.res.BindAndCheck(c, req, handler.WithCheckUri()) {
+	if receive.res.BindAndCheck(c, req, handler.WithCheckUri(), handler.WithCheckJson()) {
 		return
 	}
 	if err := receive.userSvc.UserAddRole(c, req); err != nil {
+		receive.res.ResponseFailure(c, err)
+		return
+	}
+	receive.res.ResponseSuccess(c, nil)
+}
+
+func (receive *UserCtrl) RemoveRoleHandler(c *gin.Context) {
+	req := new(schema.UserUpdateRoleRequest)
+	if receive.res.BindAndCheck(c, req, handler.WithCheckUri(), handler.WithCheckJson()) {
+		return
+	}
+	if err := receive.userSvc.UserRemoveRole(c, req); err != nil {
 		receive.res.ResponseFailure(c, err)
 		return
 	}

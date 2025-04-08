@@ -16,6 +16,10 @@ type Policy struct {
 	Roles     []*Role               `gorm:"many2many:role_policy;"`
 }
 
-func (p *Policy) TableName() string {
+func (receiver *Policy) TableName() string {
 	return "policys"
+}
+
+func (receiver Policy) GetID() int {
+	return receiver.ID
 }

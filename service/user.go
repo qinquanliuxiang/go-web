@@ -6,11 +6,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 	"qqlx/base/apierr"
 	"qqlx/base/conf"
-	"qqlx/base/constant"
 	"qqlx/base/helpers"
 	"qqlx/base/logger"
 	"qqlx/base/reason"
@@ -24,6 +21,9 @@ import (
 	"qqlx/store/userstore"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type UserSVC struct {
@@ -142,7 +142,7 @@ func (receive *UserSVC) Login(ctx context.Context, req *schema.UserLoginRequest)
 		for _, role := range user.Roles {
 			rolesName = append(rolesName, role.Name)
 		}
-		err = receive.cache.SetSlice(ctx, constant.RoleCacheKeyPrefix+user.Name, rolesName, &cache.NeverExpires)
+		err = receive.cache.SetSlice(ctx, helpers.GetRoleCacheKey(user.Name), rolesName, &cache.NeverExpires)
 		if err != nil {
 			return nil, err
 		}
@@ -348,15 +348,9 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 	if err != nil {
 		return err
 	}
-	listNames := make([]any, 0, len(list))
-	_listNames := make([]string, 0, len(list))
-	for _, role := range list {
-		_listNames = append(_listNames, role.Name)
-		listNames = append(listNames, role.Name)
-	}
-	if len(list) != roleCount {
-		uniqRole := helpers.GetUnique(_listNames, req.RoleNames)
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrRoleNotFound).WithMsg(fmt.Sprintf("role not exist: %v", uniqRole))
+	notFound := helpers.FindMissingByName(list, req.RoleNames)
+	if len(notFound) > 0 {
+		return apierr.InternalServer().WithStack().WithErr(reason.ErrRoleNotFound).WithMsg(fmt.Sprintf("role not exist: %v", notFound))
 	}
 
 	userCache := helpers.GetRoleCacheKey(user.Name)
@@ -369,8 +363,19 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 		return err
 	}
 
-	if err = receive.cache.SetSlice(ctx, userCache, listNames, &cache.NeverExpires); err != nil {
+	query, err := receive.userStore.Query(ctx, userstore.ID(req.ID), userstore.LoadRoles())
+	if err != nil {
 		return err
+	}
+
+	if len(query.Roles) > 0 {
+		listNames := make([]any, 0, len(list))
+		for _, role := range query.Roles {
+			listNames = append(listNames, role.Name)
+		}
+		if err = receive.cache.SetSlice(ctx, userCache, listNames, &cache.NeverExpires); err != nil {
+			return err
+		}
 	}
 
 	go func() {
@@ -399,7 +404,7 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 			}
 		}
 	}
-	return
+	return nil
 }
 
 func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpdateRoleRequest) (err error) {
@@ -424,13 +429,12 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 		return err
 	}
 
-	if len(list) != roleCount {
-		listNames := make([]string, 0, len(list))
-		for _, role := range list {
-			listNames = append(listNames, role.Name)
-		}
-		uniqRole := helpers.GetUnique(listNames, req.RoleNames)
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrRoleNotFound).WithMsg(fmt.Sprintf("role not exist: %s", strings.Join(uniqRole, ",")))
+	notFound := helpers.FindMissingByName(list, req.RoleNames)
+	if len(notFound) > 0 {
+		return apierr.InternalServer().
+			WithStack().
+			WithErr(reason.ErrRoleNotFound).
+			WithMsg(fmt.Sprintf("role not exist: %s", strings.Join(notFound, ",")))
 	}
 
 	userCache := helpers.GetRoleCacheKey(user.Name)
@@ -473,7 +477,7 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 			}
 		}
 	}
-	return
+	return nil
 }
 
 // Info 获取用户信息

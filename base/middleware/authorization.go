@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/gin-gonic/gin"
+	"fmt"
 	"net/http"
 	"qqlx/base/apierr"
 	"qqlx/base/constant"
@@ -12,6 +12,8 @@ import (
 	"qqlx/store"
 	"qqlx/store/cache"
 	"qqlx/store/userstore"
+
+	"github.com/gin-gonic/gin"
 )
 
 const AuthFailed = "authentication failed"
@@ -57,7 +59,7 @@ func (receive *AuthorizationMiddleware) Authorization() gin.HandlerFunc {
 		}
 		_roleName := make([]any, 0, 10)
 		if len(roleName) == 0 {
-			user, err := receive.userStore.Query(c, userstore.Name(claims.UserName))
+			user, err := receive.userStore.Query(c, userstore.Name(claims.UserName), userstore.LoadRoles())
 			if err != nil {
 				permissionDenied(c, map[string]any{
 					"error": err.Error(),
@@ -69,7 +71,7 @@ func (receive *AuthorizationMiddleware) Authorization() gin.HandlerFunc {
 
 			if len(user.Roles) == 0 {
 				permissionDenied(c, map[string]any{
-					"error": err.Error(),
+					"error": fmt.Sprintf("user %s roles is empty", claims.UserName),
 					"code":  http.StatusForbidden,
 					"msg":   AuthFailed,
 				}, apierr.Unauthorized().WithMsg("get user roles failed").WithErr(reason.ErrRoleNotFound).WithStack())
@@ -109,7 +111,6 @@ func (receive *AuthorizationMiddleware) Authorization() gin.HandlerFunc {
 
 		logger.WithContext(c, true).Errorf("permission denied: user=%s, roles=%v, path=%s, method=%s",
 			claims.UserName, roleName, c.Request.URL.Path, c.Request.Method)
-		return
 	}
 }
 

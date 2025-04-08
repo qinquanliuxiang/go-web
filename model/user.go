@@ -24,6 +24,6 @@ type User struct {
 	Roles     []Role                `gorm:"many2many:user_role;" json:"role,omitempty"`
 }
 
-func (u *User) TableName() string {
+func (receiver *User) TableName() string {
 	return "users"
 }
