@@ -130,6 +130,14 @@ func (receive *RoleStore) List(ctx context.Context, page int, pageSize int, opti
 		return 0, nil, apierr.InternalServer().WithMsg("failed to count roles").WithErr(err).WithStack()
 	}
 
+	if page == -1 && pageSize == -1 {
+		err = query.Find(&roles).Error
+		if err != nil {
+			return 0, nil, apierr.InternalServer().WithMsg("failed to list roles").WithErr(err).WithStack()
+		}
+		return total, roles, nil
+	}
+
 	// 数据查询
 	err = query.Offset((page - 1) * pageSize).
 		Limit(pageSize).

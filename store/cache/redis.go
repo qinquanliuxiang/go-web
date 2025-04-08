@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/redis/go-redis/v9"
 	"qqlx/base/apierr"
 	"qqlx/base/conf"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -40,9 +41,9 @@ func NewStore(client *redis.Client) (*Store, func(), error) {
 	}, closeup, nil
 }
 
-func (c *Store) GetSlice(ctx context.Context, key string) ([]string, error) {
+func (c *Store) GetSet(ctx context.Context, key string) ([]string, error) {
 	saveKey := fmt.Sprintf("%s:%s", c.keyPrefix, key)
-	result, err := c.client.LRange(ctx, saveKey, 0, -1).Result()
+	result, err := c.client.SMembers(ctx, saveKey).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return nil, nil
@@ -52,16 +53,16 @@ func (c *Store) GetSlice(ctx context.Context, key string) ([]string, error) {
 	return result, nil
 }
 
-func (c *Store) SetSlice(ctx context.Context, key string, value []any, expireTime *time.Duration) error {
+func (c *Store) SetSet(ctx context.Context, key string, value []any, expireTime *time.Duration) error {
 	saveKey := fmt.Sprintf("%s:%s", c.keyPrefix, key)
 	if expireTime == nil {
-		if err := c.client.RPush(ctx, saveKey, value...).Err(); err != nil {
+		if err := c.client.SAdd(ctx, saveKey, value...).Err(); err != nil {
 			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
 		}
 		return nil
 	}
 	if expireTime == &NeverExpires {
-		if err := c.client.RPush(ctx, saveKey, value...).Err(); err != nil {
+		if err := c.client.SAdd(ctx, saveKey, value...).Err(); err != nil {
 			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
 		}
 		return nil

@@ -52,7 +52,6 @@ type UserStoreInterface interface {
 	// @return user 用户
 	// @return err 错误
 	Query(ctx context.Context, options ...userstore.QueryOption) (user *model.User, err error)
-	Querys(ctx context.Context, options ...userstore.QueryOption) (user []model.User, err error)
 	Create(ctx context.Context, user *model.User) (err error)
 	Save(ctx context.Context, user *model.User) (err error)
 	// Delete 删除用户
@@ -145,9 +144,9 @@ type PolicyStoreInterface interface {
 
 // CacheInterface 缓存
 type CacheInterface interface {
-	GetSlice(ctx context.Context, key string) ([]string, error)
+	GetSet(ctx context.Context, key string) ([]string, error)
 
-	SetSlice(ctx context.Context, key string, value []any, expireTime *time.Duration) error
+	SetSet(ctx context.Context, key string, value []any, expireTime *time.Duration) error
 	// GetString 获取字符串
 	//
 	// @param key 键

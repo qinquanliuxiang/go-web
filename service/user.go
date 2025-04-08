@@ -85,7 +85,6 @@ func (receive *UserSVC) RegistryUser(ctx context.Context, req *schema.UserRegist
 			ID:       id,
 			Name:     req.Name,
 			NickName: req.NickName,
-			//Name: req.Name,
 			Password: encryptPassword,
 			Avatar:   req.Avatar,
 			Email:    req.Email,
@@ -142,7 +141,7 @@ func (receive *UserSVC) Login(ctx context.Context, req *schema.UserLoginRequest)
 		for _, role := range user.Roles {
 			rolesName = append(rolesName, role.Name)
 		}
-		err = receive.cache.SetSlice(ctx, helpers.GetRoleCacheKey(user.Name), rolesName, &cache.NeverExpires)
+		err = receive.cache.SetSet(ctx, helpers.GetRoleCacheKey(user.Name), rolesName, &cache.NeverExpires)
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +174,7 @@ func (receive *UserSVC) Logout(ctx context.Context, id int) (err error) {
 	return nil
 }
 
-func (receive *UserSVC) DisableUser(ctx context.Context, req *schema.UserIDRequest) (err error) {
+func (receive *UserSVC) DisableUser(ctx context.Context, req *schema.UserQueryRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("user delete, request: %#v", req)
 	var user *model.User
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
@@ -185,6 +184,10 @@ func (receive *UserSVC) DisableUser(ctx context.Context, req *schema.UserIDReque
 		}
 		return err
 	}
+	if user.Name == "admin" {
+		return apierr.InternalServer().WithStack().WithErr(reason.ErrAdminUserNotAllow)
+	}
+
 	if *user.Status == model.UserStatusDisable {
 		logger.WithContext(ctx, true).Errorf("user has been disabled, userName: %s", user.Name)
 		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
@@ -343,6 +346,10 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
 	}
 
+	if user.Name == "admin" {
+		return apierr.InternalServer().WithStack().WithErr(reason.ErrAdminUserNotAllow)
+	}
+
 	roleCount := len(req.RoleNames)
 	_, list, err := receive.roleStore.List(ctx, 1, roleCount, rbac.RoleNames(req.RoleNames))
 	if err != nil {
@@ -373,7 +380,7 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 		for _, role := range query.Roles {
 			listNames = append(listNames, role.Name)
 		}
-		if err = receive.cache.SetSlice(ctx, userCache, listNames, &cache.NeverExpires); err != nil {
+		if err = receive.cache.SetSet(ctx, userCache, listNames, &cache.NeverExpires); err != nil {
 			return err
 		}
 	}
@@ -418,6 +425,10 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 		return err
 	}
 
+	if user.Name == "admin" {
+		return apierr.InternalServer().WithStack().WithErr(reason.ErrAdminUserNotAllow)
+	}
+
 	if *user.Status == model.UserStatusDisable {
 		logger.WithContext(ctx, true).Errorf("user has been disabled, userName: %s", user.Name)
 		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
@@ -457,7 +468,7 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 		for _, role := range query.Roles {
 			roleNames = append(roleNames, role.Name)
 		}
-		if err = receive.cache.SetSlice(ctx, userCache, roleNames, &cache.NeverExpires); err != nil {
+		if err = receive.cache.SetSet(ctx, userCache, roleNames, &cache.NeverExpires); err != nil {
 			return err
 		}
 	}
@@ -481,9 +492,19 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 }
 
 // Info 获取用户信息
-func (receive *UserSVC) Info(ctx context.Context, id int) (res *schema.UserResponse, err error) {
-	logger.WithContext(ctx, true).Debugf("user info, request: %#v", id)
-	user, err := receive.userStore.Query(ctx, userstore.ID(id), userstore.LoadRoles(), userstore.LoadRolePolicy())
+func (receive *UserSVC) Info(ctx context.Context, req *schema.UserQueryRequest) (res *schema.UserResponse, err error) {
+	logger.WithContext(ctx, true).Debugf("user info, request: %#v", req)
+	options := make([]userstore.QueryOption, 0, len(req.Query)+1)
+	if len(req.Query) > 0 {
+		for _, v := range req.Query {
+			switch v {
+			case "roles":
+				options = append(options, userstore.LoadRoles())
+			}
+		}
+	}
+	options = append(options, userstore.ID(req.ID))
+	user, err := receive.userStore.Query(ctx, options...)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
@@ -494,8 +515,16 @@ func (receive *UserSVC) Info(ctx context.Context, id int) (res *schema.UserRespo
 		logger.WithContext(ctx, true).Errorf("userstore has been disabled, userName: %s", user.Name)
 		return nil, apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
 	}
+
 	res = &schema.UserResponse{}
 	res.ConvertToUserResponse(user)
+	if len(req.Query) == 0 {
+		roleName, err := receive.cache.GetSet(ctx, helpers.GetRoleCacheKey(user.Name))
+		if err != nil {
+			return nil, err
+		}
+		res.RoleName = roleName
+	}
 	return res, nil
 }
 

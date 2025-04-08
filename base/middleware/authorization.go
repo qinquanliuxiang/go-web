@@ -48,7 +48,7 @@ func (receive *AuthorizationMiddleware) Authorization() gin.HandlerFunc {
 			return
 		}
 		key := helpers.GetRoleCacheKey(claims.UserName)
-		roleName, err := receive.cache.GetSlice(c, key)
+		roleName, err := receive.cache.GetSet(c, key)
 		if err != nil {
 			permissionDenied(c, map[string]any{
 				"error": err.Error(),
@@ -82,7 +82,7 @@ func (receive *AuthorizationMiddleware) Authorization() gin.HandlerFunc {
 				_roleName = append(_roleName, role.Name)
 				roleName = append(roleName, role.Name)
 			}
-			_ = receive.cache.SetSlice(c, key, _roleName, &cache.NeverExpires)
+			_ = receive.cache.SetSet(c, key, _roleName, &cache.NeverExpires)
 			logger.WithContext(c, true).Debugf("user: %s, set roles: %v", user.Name, _roleName)
 		}
 

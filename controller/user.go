@@ -129,7 +129,7 @@ func (receive *UserCtrl) RemoveRoleHandler(c *gin.Context) {
 }
 
 func (receive *UserCtrl) DisableHandler(c *gin.Context) {
-	req := new(schema.UserIDRequest)
+	req := new(schema.UserQueryRequest)
 	if receive.res.BindAndCheck(c, req, handler.WithCheckUri()) {
 		return
 	}
@@ -167,11 +167,12 @@ func (receive *UserCtrl) ListHandler(c *gin.Context) {
 
 // GetUserInfoHandler 根据ID获取用户
 func (receive *UserCtrl) GetUserInfoHandler(c *gin.Context) {
-	req := new(schema.UserIDRequest)
-	if receive.res.BindAndCheck(c, req, handler.WithCheckUri()) {
+	req := new(schema.UserQueryRequest)
+	if receive.res.BindAndCheck(c, req, handler.WithCheckUri(), handler.WithCheckForm()) {
 		return
 	}
-	res, err := receive.userSvc.Info(c, req.ID)
+
+	res, err := receive.userSvc.Info(c, req)
 	if err != nil {
 		receive.res.ResponseFailure(c, err)
 		return
@@ -186,7 +187,9 @@ func (receive *UserCtrl) InfoHandler(c *gin.Context) {
 		receive.res.ResponseFailure(c, err)
 		return
 	}
-	res, err := receive.userSvc.Info(c, claims.UserID)
+	res, err := receive.userSvc.Info(c, &schema.UserQueryRequest{
+		ID: claims.UserID,
+	})
 	if err != nil {
 		receive.res.ResponseFailure(c, err)
 		return

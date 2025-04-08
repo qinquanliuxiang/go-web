@@ -47,13 +47,6 @@ func LoadRoles() QueryOption {
 	}
 }
 
-// LoadRolePolicy 设置 User 预加载 Role.Policy
-func LoadRolePolicy() QueryOption {
-	return func(query *gorm.DB) *gorm.DB {
-		return query.Preload("Role.Policys")
-	}
-}
-
 // QueryByNameOrEmail 根据 name 或 email 进行前缀查询
 func QueryByNameOrEmail(keyword string, value string) QueryOption {
 	return func(query *gorm.DB) *gorm.DB {
@@ -105,21 +98,7 @@ func (receive *Store) Query(ctx context.Context, options ...QueryOption) (user *
 	}
 	err = sql.Take(&user).Error
 	if err != nil {
-		return nil, apierr.InternalServer().WithMsg("failed to query user").WithErr(err)
-	}
-	return
-}
-
-func (receive *Store) Querys(ctx context.Context, options ...QueryOption) (user []model.User, err error) {
-	sql := receive.store.WithContext(ctx).Model(&model.User{})
-	if len(options) > 0 {
-		for _, option := range options {
-			sql = option(sql)
-		}
-	}
-	err = sql.Find(&user).Error
-	if err != nil {
-		return nil, apierr.InternalServer().WithMsg("failed to query users").WithErr(err)
+		return nil, apierr.InternalServer().WithMsg("failed to query user").WithErr(err).WithStack()
 	}
 	return
 }

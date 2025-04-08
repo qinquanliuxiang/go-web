@@ -23,8 +23,8 @@ type RolePolicyRequest struct {
 }
 
 type RoleListRequest struct {
-	Page     int `form:"page" validate:"required,gt=0"`
-	PageSize int `form:"pageSize" validate:"required,gt=0"`
+	Page     int `form:"page" validate:"required,gt=0|eq=-1"`
+	PageSize int `form:"pageSize" validate:"required,gt=0|eq=-1"`
 }
 
 type RoleListResponse struct {

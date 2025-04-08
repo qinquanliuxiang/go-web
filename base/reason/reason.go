@@ -16,6 +16,7 @@ var (
 	ErrRoleExists        = errors.New("role already exists")
 	ErrUserHasSameRole   = errors.New("user has the same role")
 	ErrUserNotFound      = errors.New("user does not exist")
+	ErrAdminUserNotAllow = errors.New("admin user cannot operate")
 	ErrInvalidPassword   = errors.New("password is invalid")
 	ErrPolicyNotFound    = errors.New("policy does not exist")
 	ErrAdminRole         = errors.New("admin role can not modify policy")

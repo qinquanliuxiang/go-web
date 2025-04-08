@@ -1,12 +1,14 @@
 package schema
 
 import (
-	"gorm.io/plugin/soft_delete"
 	"qqlx/model"
+
+	"gorm.io/plugin/soft_delete"
 )
 
-type UserIDRequest struct {
-	ID int `uri:"id" validate:"required,gte=1"`
+type UserQueryRequest struct {
+	ID    int      `uri:"id" validate:"required,gte=1"`
+	Query []string `form:"query"`
 }
 
 type UserEnableRequest struct {
@@ -67,9 +69,9 @@ type UserResponse struct {
 	Avatar    string                `json:"avatar"`
 	Email     string                `json:"email"`
 	Mobile    string                `json:"mobile"`
-	RoleName  string                `json:"roleName"`
 	Status    int                   `json:"status"`
-	Roles     []model.Role          `json:"role,omitempty"`
+	RoleName  []string              `json:"roleName,omitempty"`
+	Roles     []model.Role          `json:"roles,omitempty"`
 }
 
 func (receive *UserResponse) ConvertToUserResponse(in *model.User) {

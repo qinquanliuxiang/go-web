@@ -33,7 +33,7 @@ var polices = []schema.PolicyCreateRequest{
 		Name:     "disableUser",
 		Path:     "/api/v1/users/:id",
 		Method:   "DELETE",
-		Describe: "删除用户",
+		Describe: "禁用用户",
 	},
 	{
 		Name:     "enableUser",
@@ -42,10 +42,16 @@ var polices = []schema.PolicyCreateRequest{
 		Describe: "启用用户",
 	},
 	{
-		Name:     "updateUserRole",
-		Path:     "/api/v1/users/:id/:roleName",
+		Name:     "AddUserRole",
+		Path:     "/api/v1/users/:id/roles",
 		Method:   "PUT",
-		Describe: "更新用户角色",
+		Describe: "增加用户角色",
+	},
+	{
+		Name:     "DeleteUserRole",
+		Path:     "/api/v1/users/:id/roles",
+		Method:   "DELETE",
+		Describe: "删除用户角色",
 	},
 	{
 		Name:     "listRoles",
