@@ -78,7 +78,7 @@ func NewHttpServer(
 	}
 	r := gin.New()
 	r.GET("/healthz", func(ctx *gin.Context) { ctx.String(200, "OK") })
-	r.Use(middleware.RequestIDMiddleware(), middleware.CorssDomainMiddleware(), middleware.ZapMiddleware(), gin.Recovery())
+	r.Use(middleware.ZapMiddleware(), middleware.RequestIDMiddleware(), middleware.CorssDomainMiddleware(), gin.Recovery())
 
 	baseGroup := r.Group("/api/v1")
 	apiRouter.RegisterApiUserRoute(baseGroup, authorization)

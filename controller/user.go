@@ -31,7 +31,7 @@ func (receive *UserCtrl) RegisterHandler(c *gin.Context) {
 	}
 
 	if !regexp.MustCompile(`^[a-zA-Z]+$`).MatchString(req.Name) {
-		receive.res.ResponseFailure(c, apierr.BadRequest().WithErr(reason.ErrNameInvalid))
+		receive.res.ResponseFailure(c, apierr.BadRequest().Set(apierr.ParamsErrCode, reason.ErrNameInvalid.Error(), reason.ErrNameInvalid))
 		return
 	}
 

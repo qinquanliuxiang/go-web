@@ -3,7 +3,6 @@ package rbac
 import (
 	"context"
 	"errors"
-	"fmt"
 	"qqlx/base/apierr"
 	"qqlx/base/reason"
 	"qqlx/model"
@@ -40,14 +39,14 @@ func RoleSortByCreatedDesc() RoleQueryOption {
 	}
 }
 
-// LoadPolices role 设置预加载 Policys
+// LoadPolices role 设置预加载 Policy's
 func LoadPolices() RoleQueryOption {
 	return func(query *gorm.DB) *gorm.DB {
 		return query.Preload("Policys")
 	}
 }
 
-// LoadPolicies role 设置预加载 Policys
+// LoadPolicies role 设置预加载 Policy's
 func LoadPolicies() RoleQueryOption {
 	return func(query *gorm.DB) *gorm.DB {
 		return query.Preload("Policys")
@@ -58,6 +57,18 @@ func LoadPolicies() RoleQueryOption {
 func LoadUsers() RoleQueryOption {
 	return func(query *gorm.DB) *gorm.DB {
 		return query.Preload("Users", "status = 1")
+	}
+}
+
+// RoleQueryByName 根据 name 进行前缀查询
+func RoleQueryByName(keyword string, value string) RoleQueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		likeVal := value + "%"
+		switch keyword {
+		case "name":
+			query = query.Where("name LIKE ?", likeVal)
+		}
+		return query
 	}
 }
 
@@ -82,22 +93,22 @@ func NewRoleStore(store *gorm.DB) *RoleStore {
 
 func (receive *RoleStore) Create(ctx context.Context, role *model.Role) (err error) {
 	if role == nil {
-		return apierr.InternalServer().WithMsg("failed to create role").WithErr(fmt.Errorf("role is nil")).WithStack()
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed create role", reason.ErrRoleIsEmpty)
 	}
 	err = receive.store.WithContext(ctx).Create(&role).Error
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to create role").WithErr(err).WithStack()
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed create role", err)
 	}
 	return nil
 }
 
 func (receive *RoleStore) Save(ctx context.Context, role *model.Role) (err error) {
 	if role == nil {
-		return apierr.InternalServer().WithMsg("failed to save role").WithErr(fmt.Errorf("role is nil"))
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed save role", reason.ErrRoleIsEmpty)
 	}
 	err = receive.store.WithContext(ctx).Save(&role).Error
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to save role").WithErr(err).WithStack()
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed save role", err)
 	}
 	return nil
 }
@@ -111,7 +122,7 @@ func (receive *RoleStore) Delete(ctx context.Context, role *model.Role, options 
 	}
 	err = sql.Delete(&role).Error
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to delete role").WithErr(err).WithStack()
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed delete role", err)
 	}
 	return nil
 }
@@ -127,13 +138,13 @@ func (receive *RoleStore) List(ctx context.Context, page int, pageSize int, opti
 	// 计数查询
 	err = query.Count(&total).Error
 	if err != nil {
-		return 0, nil, apierr.InternalServer().WithMsg("failed to count roles").WithErr(err).WithStack()
+		return 0, nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed count role", err)
 	}
 
 	if page == -1 && pageSize == -1 {
 		err = query.Find(&roles).Error
 		if err != nil {
-			return 0, nil, apierr.InternalServer().WithMsg("failed to list roles").WithErr(err).WithStack()
+			return 0, nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed list role", err)
 		}
 		return total, roles, nil
 	}
@@ -143,7 +154,7 @@ func (receive *RoleStore) List(ctx context.Context, page int, pageSize int, opti
 		Limit(pageSize).
 		Find(&roles).Error
 	if err != nil {
-		return 0, nil, apierr.InternalServer().WithMsg("failed to list roles").WithErr(err).WithStack()
+		return 0, nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed list role", err)
 	}
 
 	return total, roles, nil
@@ -157,9 +168,9 @@ func (receive *RoleStore) Query(ctx context.Context, options ...RoleQueryOption)
 	}
 	if err = query.Take(&role).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apierr.InternalServer().WithMsg("failed to query role").WithErr(reason.ErrRoleNotFound).WithStack()
+			return nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed query role", reason.ErrRoleNotFound)
 		}
-		return nil, apierr.InternalServer().WithMsg("failed to query role").WithErr(err).WithStack()
+		return nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed query role", err)
 	}
 	return role, nil
 }
@@ -177,7 +188,7 @@ func NewRoleAssociationStore(store *gorm.DB) *RoleAssociationStore {
 func (r *RoleAssociationStore) AppendPolicy(ctx context.Context, role *model.Role, appendPolicy []model.Policy) (err error) {
 	err = r.store.WithContext(ctx).Model(&role).Association("Policys").Append(&appendPolicy)
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to append policy").WithErr(err).WithStack()
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed append policy", err)
 	}
 	return nil
 }
@@ -185,7 +196,7 @@ func (r *RoleAssociationStore) AppendPolicy(ctx context.Context, role *model.Rol
 func (r *RoleAssociationStore) DeletePolicy(ctx context.Context, role *model.Role, policy []model.Policy) (err error) {
 	err = r.store.WithContext(ctx).Model(&role).Association("Policys").Delete(&policy)
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to delete policy").WithErr(err).WithStack()
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed delete policy", err)
 	}
 	return nil
 }

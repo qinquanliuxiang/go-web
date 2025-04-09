@@ -37,8 +37,8 @@ func InitConf() error {
 }
 
 type MyClaims struct {
-	UserID   int    `json:"userId,omitempty"`
-	UserName string `json:"userName,omitempty"`
+	UserID   int    `json:"userId"`
+	UserName string `json:"userName"`
 	*jwt.RegisteredClaims
 }
 
@@ -62,7 +62,7 @@ func (c *MyClaims) GenerateToken() (token string, err error) {
 
 	token, err = claims.SignedString([]byte(jwtConf.Secret))
 	if err != nil {
-		return "", apierr.InternalServer().WithMsg("failed to generate token").WithErr(err)
+		return "", apierr.InternalServer().Set(apierr.JwtErrCode, "failed to generate token", err)
 	}
 	return token, nil
 }
@@ -74,23 +74,23 @@ func ParseToken(tokenString string) (*MyClaims, error) {
 		return []byte(jwtConf.Secret), nil
 	})
 	if err != nil {
-		return nil, apierr.InternalServer().WithMsg("failed to parse token").WithErr(err)
+		return nil, apierr.InternalServer().Set(apierr.JwtErrCode, "failed to parse token", err)
 	}
 	if claims, ok := token.Claims.(*MyClaims); ok {
 		return claims, nil
 	}
-	return nil, apierr.InternalServer().WithMsg("failed to parse token").WithErr(reason.ErrTokenMode)
+	return nil, apierr.InternalServer().Set(apierr.JwtErrCode, "failed to parse token", reason.ErrTokenMode)
 }
 
 // GetMyClaims 从gin.Context获取MyCustomClaims
 func GetMyClaims(c *gin.Context) (*MyClaims, error) {
 	cl, ok := c.Get(constant.AuthMidwareKey)
 	if !ok {
-		return nil, apierr.Unauthorized().WithMsg("get claims from context failed").WithErr(reason.ErrTokenMode)
+		return nil, apierr.Unauthorized().Set(apierr.JwtErrCode, "get claims from context failed", reason.ErrTokenInvalid)
 	}
 	myCustomClaims, ok := cl.(*MyClaims)
 	if !ok {
-		return nil, apierr.Unauthorized().WithMsg("get claims from context failed").WithErr(reason.ErrTokenMode)
+		return nil, apierr.Unauthorized().Set(apierr.JwtErrCode, "get claims from context failed", reason.ErrTokenMode)
 	}
 	return myCustomClaims, nil
 }

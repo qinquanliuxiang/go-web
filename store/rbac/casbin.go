@@ -2,7 +2,6 @@ package rbac
 
 import (
 	"context"
-	"fmt"
 	"qqlx/base/apierr"
 
 	"github.com/casbin/casbin/v2"
@@ -22,7 +21,7 @@ func NewCasbinStore(enforcer *casbin.Enforcer) *CasbinStore {
 func (receive *CasbinStore) GetRolePolicyByName(_ context.Context, role string) (policys [][]string, err error) {
 	policys, err = receive.enforcer.GetFilteredPolicy(0, role)
 	if err != nil {
-		return nil, apierr.InternalServer().WithMsg(fmt.Sprintf("failed to get casbin role: %s", role)).WithErr(err)
+		return nil, apierr.InternalServer().Set(apierr.CasbinErrCode, "failed to get casbin policy", err)
 	}
 	return policys, nil
 }
@@ -33,7 +32,7 @@ func (receive *CasbinStore) GetRolePolicyByName(_ context.Context, role string) 
 func (receive *CasbinStore) CreateRolePolices(_ context.Context, polices [][]string) (err error) {
 	_, err = receive.enforcer.AddPolicies(polices)
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to create casbin policy").WithErr(err)
+		return apierr.InternalServer().Set(apierr.CasbinErrCode, "failed to create casbin policy", err)
 	}
 
 	return nil
@@ -45,7 +44,7 @@ func (receive *CasbinStore) CreateRolePolices(_ context.Context, polices [][]str
 func (receive *CasbinStore) DeleteRolePolices(_ context.Context, polices [][]string) (err error) {
 	_, err = receive.enforcer.RemovePolicies(polices)
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to delete casbin policy").WithErr(err)
+		return apierr.InternalServer().Set(apierr.CasbinErrCode, "failed to delete casbin policy", err)
 	}
 	return nil
 }
@@ -61,7 +60,7 @@ func (receive *CasbinStore) UpdateRolePolices(ctx context.Context, roleName stri
 
 	_, err = receive.enforcer.UpdatePolicies(oldPolicys, polices)
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to update casbin policy").WithErr(err)
+		return apierr.InternalServer().Set(apierr.CasbinErrCode, "failed to update casbin policy", err)
 	}
 	return nil
 }
@@ -79,7 +78,7 @@ func NewAuthentication(enforcer *casbin.Enforcer) *Authentication {
 func (a *Authentication) EnforceWithCtx(_ context.Context, sub, obj, act string) (ok bool, err error) {
 	ok, err = a.enforcer.Enforce(sub, obj, act)
 	if err != nil {
-		return false, apierr.Forbidden().WithErr(err).WithMsg("failed to enforce")
+		return false, apierr.Forbidden().Set(apierr.CasbinErrCode, "failed to enforce casbin policy", err)
 	}
 	return ok, nil
 }

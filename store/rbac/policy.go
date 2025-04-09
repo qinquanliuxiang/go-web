@@ -71,33 +71,21 @@ func (receive *PolicyStore) Query(ctx context.Context, options ...PolicyQueryOpt
 		query = option(query)
 	}
 	if err = query.Take(&policy).Error; err != nil {
-		return nil, apierr.InternalServer().WithMsg("failed to query policy").WithErr(err)
+		return nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed to query policy", err)
 	}
 	return policy, nil
 }
 
-func (receive *PolicyStore) Querys(ctx context.Context, options ...PolicyQueryOption) (polices []model.Policy, err error) {
-	query := receive.data.WithContext(ctx).Model(&polices)
-	// 添加查询选项
-	for _, option := range options {
-		query = option(query)
-	}
-	if err = query.Find(&polices).Error; err != nil {
-		return nil, apierr.InternalServer().WithMsg("failed to query policy").WithErr(err)
-	}
-	return polices, nil
-}
-
 func (receive *PolicyStore) Create(ctx context.Context, policy *model.Policy) (err error) {
 	if err = receive.data.WithContext(ctx).Create(&policy).Error; err != nil {
-		return apierr.InternalServer().WithMsg("failed to create policy").WithErr(err)
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to create policy", err)
 	}
 	return nil
 }
 
 func (receive *PolicyStore) Save(ctx context.Context, policy *model.Policy) (err error) {
 	if err = receive.data.WithContext(ctx).Save(&policy).Error; err != nil {
-		return apierr.InternalServer().WithMsg("failed to save policy").WithErr(err)
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to save policy", err)
 	}
 	return nil
 }
@@ -112,7 +100,7 @@ func (receive *PolicyStore) Delete(ctx context.Context, policy *model.Policy, op
 		}
 	}
 	if err = sql.Delete(&policy).Error; err != nil {
-		return apierr.InternalServer().WithMsg("failed to delete policy").WithErr(err)
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to delete policy", err)
 	}
 	return nil
 }
@@ -126,7 +114,7 @@ func (receive *PolicyStore) List(ctx context.Context, page int, pageSize int, op
 
 	err = query.Count(&total).Error
 	if err != nil {
-		return 0, nil, apierr.InternalServer().WithMsg("failed to count policies").WithErr(err)
+		return 0, nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed to count policies", err)
 	}
 
 	err = query.
@@ -134,7 +122,7 @@ func (receive *PolicyStore) List(ctx context.Context, page int, pageSize int, op
 		Limit(pageSize).
 		Find(&polices).Error
 	if err != nil {
-		return 0, nil, apierr.InternalServer().WithMsg("failed to list policies").WithErr(err)
+		return 0, nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed to list policies", err)
 	}
 	return total, polices, nil
 }

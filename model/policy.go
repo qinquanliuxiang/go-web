@@ -13,7 +13,7 @@ type Policy struct {
 	Path      string                `gorm:"comment:路径;size:128;uniqueIndex:idx_policy_name_path_method"`
 	Method    string                `gorm:"comment:方法;size:10;uniqueIndex:idx_policy_name_path_method"`
 	Describe  string                `gorm:"comment:描述;size:1024"`
-	Roles     []*Role               `gorm:"many2many:role_policy;"`
+	Roles     []Role                `gorm:"many2many:role_policy;"`
 }
 
 func (receiver *Policy) TableName() string {

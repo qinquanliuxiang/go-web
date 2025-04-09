@@ -48,7 +48,7 @@ func (c *Store) GetSet(ctx context.Context, key string) ([]string, error) {
 		if errors.Is(err, redis.Nil) {
 			return nil, nil
 		}
-		return nil, apierr.InternalServer().WithMsg("redis get slice failed").WithErr(err).WithStack()
+		return nil, apierr.InternalServer().Set(apierr.RedisErrCode, "redis get set failed", err)
 	}
 	return result, nil
 }
@@ -57,13 +57,13 @@ func (c *Store) SetSet(ctx context.Context, key string, value []any, expireTime 
 	saveKey := fmt.Sprintf("%s:%s", c.keyPrefix, key)
 	if expireTime == nil {
 		if err := c.client.SAdd(ctx, saveKey, value...).Err(); err != nil {
-			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+			return apierr.InternalServer().Set(apierr.RedisErrCode, "redis set set failed", err)
 		}
 		return nil
 	}
 	if expireTime == &NeverExpires {
 		if err := c.client.SAdd(ctx, saveKey, value...).Err(); err != nil {
-			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+			return apierr.InternalServer().Set(apierr.RedisErrCode, "redis set set failed", err)
 		}
 		return nil
 	}
@@ -76,7 +76,7 @@ func (c *Store) GetString(ctx context.Context, key string) (string, error) {
 		if errors.Is(err, redis.Nil) {
 			return "", nil
 		}
-		return "", apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis getting %s key failed", saveKey)).WithErr(err)
+		return "", apierr.InternalServer().Set(apierr.RedisErrCode, "redis get string failed", err)
 	} else {
 		return v, nil
 	}
@@ -89,19 +89,19 @@ func (c *Store) SetString(ctx context.Context, key string, value string, expireT
 	saveKey := fmt.Sprintf("%s:%s", c.keyPrefix, key)
 	if expireTime == nil {
 		if err := c.client.Set(ctx, saveKey, value, c.expireTime).Err(); err != nil {
-			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+			return apierr.InternalServer().Set(apierr.RedisErrCode, "redis set string failed", err)
 		}
 		return nil
 	}
 	if expireTime == &NeverExpires {
 		if err := c.client.Set(ctx, saveKey, value, 0).Err(); err != nil {
-			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+			return apierr.InternalServer().Set(apierr.RedisErrCode, "redis set string failed", err)
 		}
 		return nil
 	}
 	if err := c.client.Set(ctx, saveKey, value, *expireTime).Err(); err != nil {
 		if err = c.client.Set(ctx, saveKey, value, 0).Err(); err != nil {
-			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+			return apierr.InternalServer().Set(apierr.RedisErrCode, "redis set string failed", err)
 		}
 		return nil
 	}
@@ -115,7 +115,7 @@ func (c *Store) GetInt64(ctx context.Context, key string) (*int64, error) {
 		if errors.Is(err, redis.Nil) {
 			return nil, nil
 		}
-		return nil, apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis getting %s key failed", saveKey)).WithErr(err)
+		return nil, apierr.InternalServer().Set(apierr.RedisErrCode, "redis get int failed", err)
 	}
 	return &v, nil
 }
@@ -127,18 +127,18 @@ func (c *Store) SetInt64(ctx context.Context, key string, value int64, expireTim
 	saveKey := fmt.Sprintf("%s:%s", c.keyPrefix, key)
 	if expireTime == nil {
 		if err := c.client.Set(ctx, saveKey, value, c.expireTime).Err(); err != nil {
-			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+			return apierr.InternalServer().Set(apierr.RedisErrCode, "redis set int failed", err)
 		}
 		return nil
 	}
 	if expireTime == &NeverExpires {
 		if err := c.client.Set(ctx, saveKey, value, 0).Err(); err != nil {
-			return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+			return apierr.InternalServer().Set(apierr.RedisErrCode, "redis set int failed", err)
 		}
 		return nil
 	}
 	if err := c.client.Set(ctx, saveKey, value, *expireTime).Err(); err != nil {
-		return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis setting %s key failed", saveKey)).WithErr(err)
+		return apierr.InternalServer().Set(apierr.RedisErrCode, "redis set int failed", err)
 	}
 	return nil
 }
@@ -146,14 +146,14 @@ func (c *Store) SetInt64(ctx context.Context, key string, value int64, expireTim
 func (c *Store) Del(ctx context.Context, key string) error {
 	saveKey := fmt.Sprintf("%s:%s", c.keyPrefix, key)
 	if err := c.client.Del(ctx, saveKey).Err(); err != nil {
-		return apierr.InternalServer().WithStack().WithMsg(fmt.Sprintf("redis deleting %s key failed", saveKey)).WithErr(err)
+		return apierr.InternalServer().Set(apierr.RedisErrCode, "redis delete key failed", err)
 	}
 	return nil
 }
 
 func (c *Store) Flush(ctx context.Context) error {
 	if err := c.client.FlushDB(ctx).Err(); err != nil {
-		return apierr.InternalServer().WithStack().WithMsg("redis flush db failed").WithErr(err)
+		return apierr.InternalServer().Set(apierr.RedisErrCode, "redis flushing failed", err)
 	}
 	return nil
 }

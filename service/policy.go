@@ -33,7 +33,7 @@ func (receive *PolicySVC) GetPolicy(ctx context.Context, req *schema.PolicyIDReq
 	res, err = receive.policyStore.Query(ctx, rbac.PolicyID(req.ID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apierr.InternalServer().WithMsg("policy not found").WithErr(err)
+			return nil, apierr.InternalServer().Set(apierr.ServiceErrCode, "policy not found", reason.ErrPolicyNotFound)
 		}
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (receive *PolicySVC) DeletePolicy(ctx context.Context, req *schema.PolicyID
 	policy, err := receive.policyStore.Query(ctx, rbac.PolicyID(req.ID), rbac.LoadRoles())
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().WithErr(reason.ErrPolicyNotFound).WithStack().WithMsg(fmt.Sprintf("policy id: %s does not exist ", req.ID))
+			return apierr.InternalServer().Set(apierr.ServiceErrCode, "policy not found", reason.ErrPolicyNotFound)
 		}
 		return err
 	}
@@ -71,7 +71,7 @@ func (receive *PolicySVC) DeletePolicy(ctx context.Context, req *schema.PolicyID
 		for _, role := range policy.Roles {
 			roleNames = append(roleNames, role.Name)
 		}
-		return apierr.InternalServer().WithMsg("failed to delete policy").WithErr(fmt.Errorf("policy %s belongs roles %s", policy.Name, roleNames))
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, fmt.Sprintf("policy has been used by role: %v", roleNames), reason.ErrPolicyUsedByRole)
 	}
 
 	return receive.policyStore.Delete(ctx, policy, rbac.PolicyUnscoped())

@@ -19,29 +19,26 @@ func Authentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.Request.Header.Get("Authorization")
 		if authHeader == "" {
-			permissionDenied(c, map[string]any{
-				"code":  http.StatusUnauthorized,
-				"error": reason.ErrHeaderEmpty.Error(),
-			}, apierr.Unauthorized().WithMsg(auth).WithErr(reason.ErrHeaderEmpty).WithStack())
+			authenticationDenied(c, apierr.Unauthorized().Set(apierr.AuthErrCode, auth, reason.ErrHeaderEmpty))
 			return
 		}
 		parts := strings.SplitN(authHeader, " ", 2)
 		if !(len(parts) == 2 && parts[0] == "Bearer") {
-			permissionDenied(c, map[string]any{
-				"code":  http.StatusUnauthorized,
-				"error": reason.ErrHeaderMalformed.Error(),
-			}, apierr.Unauthorized().WithMsg(auth).WithErr(reason.ErrHeaderMalformed).WithStack())
+			authenticationDenied(c, apierr.Unauthorized().Set(apierr.AuthErrCode, auth, reason.ErrHeaderMalformed))
 			return
 		}
 		mc, err := jwt.ParseToken(parts[1])
 		if err != nil {
-			permissionDenied(c, map[string]any{
-				"code":  http.StatusUnauthorized,
-				"error": reason.ErrTokenInvalid.Error(),
-			}, apierr.Unauthorized().WithMsg(auth).WithErr(reason.ErrTokenInvalid).WithStack())
+			authenticationDenied(c, apierr.Unauthorized().Set(apierr.AuthErrCode, auth, err))
 			return
 		}
 		c.Set(constant.AuthMidwareKey, mc)
 		c.Next()
 	}
+}
+
+func authenticationDenied(c *gin.Context, err error) {
+	c.Set(constant.LogErrMidwareKey, err)
+	c.JSON(http.StatusUnauthorized, newRes(apierr.AuthErrCode))
+	c.Abort()
 }

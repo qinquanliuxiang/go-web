@@ -2,9 +2,9 @@ package userstore
 
 import (
 	"context"
-	"fmt"
 	"os/user"
 	"qqlx/base/apierr"
+	"qqlx/base/reason"
 	"qqlx/model"
 
 	"gorm.io/gorm"
@@ -98,18 +98,18 @@ func (receive *Store) Query(ctx context.Context, options ...QueryOption) (user *
 	}
 	err = sql.Take(&user).Error
 	if err != nil {
-		return nil, apierr.InternalServer().WithMsg("failed to query user").WithErr(err).WithStack()
+		return nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed to query user", err)
 	}
 	return
 }
 
 func (receive *Store) Create(ctx context.Context, user *model.User) (err error) {
 	if user == nil {
-		return apierr.InternalServer().WithMsg("failed to create user").WithErr(fmt.Errorf("user is nil"))
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to create user", reason.ErrUserIsEmpty)
 	}
 	err = receive.store.WithContext(ctx).Create(&user).Error
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to create user").WithErr(err)
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to create user", err)
 	}
 	return nil
 }
@@ -123,17 +123,17 @@ func (receive *Store) Delete(ctx context.Context, user *model.User, options ...D
 	}
 	err = sql.Delete(&user).Error
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to delete user").WithErr(err)
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to delete user", err)
 	}
 	return nil
 }
 
 func (receive *Store) Save(ctx context.Context, user *model.User) (err error) {
 	if user == nil {
-		return apierr.InternalServer().WithMsg("failed to save user").WithErr(fmt.Errorf("user is nil"))
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to save user", reason.ErrUserIsEmpty)
 	}
 	if err = receive.store.WithContext(ctx).Save(user).Error; err != nil {
-		return apierr.InternalServer().WithMsg("failed to save user").WithErr(err)
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to save user", err)
 	}
 	return nil
 }
@@ -147,7 +147,7 @@ func (receive *Store) List(ctx context.Context, page, pageSize int, options ...Q
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		return 0, nil, apierr.InternalServer().WithMsg("failed to count users").WithErr(err)
+		return 0, nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed to count users", err)
 	}
 
 	var users []model.User
@@ -156,7 +156,7 @@ func (receive *Store) List(ctx context.Context, page, pageSize int, options ...Q
 		Limit(pageSize).
 		Find(&users).Error
 	if err != nil {
-		return 0, nil, apierr.InternalServer().WithMsg("failed to list users").WithErr(err)
+		return 0, nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed to list users", err)
 	}
 	return total, users, nil
 }
@@ -174,7 +174,7 @@ func NewUserAssociationStore(store *gorm.DB) *UserAssociationStore {
 func (r *UserAssociationStore) AppendRoles(ctx context.Context, user *model.User, appendRoles []model.Role) (err error) {
 	err = r.store.WithContext(ctx).Model(&user).Association("Roles").Append(&appendRoles)
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to append roles").WithErr(err).WithStack()
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to append roles", err)
 	}
 	return nil
 }
@@ -182,7 +182,7 @@ func (r *UserAssociationStore) AppendRoles(ctx context.Context, user *model.User
 func (r *UserAssociationStore) DeleteRoles(ctx context.Context, user *model.User, roles []model.Role) (err error) {
 	err = r.store.WithContext(ctx).Model(&user).Association("Roles").Delete(&roles)
 	if err != nil {
-		return apierr.InternalServer().WithMsg("failed to delete roles").WithErr(err)
+		return apierr.InternalServer().Set(apierr.DBErrCode, "failed to delete roles", err)
 	}
 	return nil
 }

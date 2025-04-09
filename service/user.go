@@ -19,7 +19,6 @@ import (
 	"qqlx/store/cache"
 	"qqlx/store/rbac"
 	"qqlx/store/userstore"
-	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -100,13 +99,13 @@ func (receive *UserSVC) RegistryUser(ctx context.Context, req *schema.UserRegist
 			// 创建 ldap 用户
 			err = receive.ldap.CreateUser(ctx, req.Name, ssha, req.Email)
 			if err != nil {
-				return apierr.InternalServer().WithStack().WithMsg("create user failed").WithErr(err)
+				return err
 			}
 		}
 	}
 
 	if user != nil {
-		return apierr.InternalServer().WithErr(fmt.Errorf("user already exists")).WithStack()
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, "user already exists", reason.ErrUserExists)
 	}
 	return nil
 }
@@ -118,22 +117,18 @@ func (receive *UserSVC) Login(ctx context.Context, req *schema.UserLoginRequest)
 		user, err = receive.userStore.Query(ctx, userstore.Email(req.Email), userstore.LoadRoles())
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, apierr.Unauthorized().WithStack().WithErr(reason.ErrUserNotFound)
+				return nil, apierr.Unauthorized().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
 			}
 			return nil, err
 		}
 	}
 
-	if user == nil {
-		return nil, apierr.Unauthorized().WithStack().WithErr(reason.ErrUserNotFound)
-	}
-
 	if *user.Status == model.UserStatusDisable {
 		logger.WithContext(ctx, true).Errorf("users has been disabled, user email: %s", user.Email)
-		return nil, apierr.Unauthorized().WithStack().WithErr(reason.ErrUserNotFound)
+		return nil, apierr.Unauthorized().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserIsDisable)
 	}
 	if !receive.verifyPassword(ctx, req.Password, user.Password) {
-		return nil, apierr.Unauthorized().WithStack().WithErr(reason.ErrInvalidPassword)
+		return nil, apierr.Unauthorized().Set(apierr.ServiceErrCode, "invalid password", reason.ErrInvalidPassword)
 	}
 	roleCount := len(user.Roles)
 	if roleCount > 0 {
@@ -161,16 +156,11 @@ func (receive *UserSVC) Logout(ctx context.Context, id int) (err error) {
 	query, err := receive.userStore.Query(ctx, userstore.ID(id))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+			return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
 		}
 		return err
 	}
-	if query != nil {
-		err = receive.cache.Del(ctx, helpers.GetRoleCacheKey(query.Name))
-		if err != nil {
-			return err
-		}
-	}
+	_ = receive.cache.Del(ctx, helpers.GetRoleCacheKey(query.Name))
 	return nil
 }
 
@@ -180,17 +170,17 @@ func (receive *UserSVC) DisableUser(ctx context.Context, req *schema.UserQueryRe
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+			return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
 		}
 		return err
 	}
 	if user.Name == "admin" {
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrAdminUserNotAllow)
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrAdminUserNotAllow.Error(), reason.ErrAdminUserNotAllow)
 	}
 
 	if *user.Status == model.UserStatusDisable {
 		logger.WithContext(ctx, true).Errorf("user has been disabled, userName: %s", user.Name)
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserIsDisable)
 	}
 
 	user.Status = &model.UserStatusDisable
@@ -220,7 +210,7 @@ func (receive *UserSVC) EnableUser(ctx context.Context, req *schema.UserEnableRe
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID), userstore.LoadRoles())
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+			return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
 		}
 		return err
 	}
@@ -267,17 +257,17 @@ func (receive *UserSVC) UpdatePassword(ctx context.Context, req *schema.UserUpda
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+			return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
 		}
 		return err
 	}
 	if *user.Status == model.UserStatusDisable {
 		logger.WithContext(ctx, true).Errorf("user has been disabled, user email: %s", user.Email)
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserIsDisable)
 	}
 
 	if !receive.verifyPassword(ctx, req.OldPassword, user.Password) {
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrInvalidPassword)
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, "invalid password", reason.ErrInvalidPassword)
 	}
 
 	encryptPassword, err := receive.encryptPassword(ctx, req.NewPassword)
@@ -305,7 +295,7 @@ func (receive *UserSVC) UpdateUser(ctx context.Context, req *schema.UserUpdateRe
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+			return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
 		}
 		return err
 	}
@@ -337,17 +327,17 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+			return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
 		}
 		return err
 	}
 	if *user.Status == model.UserStatusDisable {
 		logger.WithContext(ctx, true).Errorf("user has been disabled, userName: %s", user.Name)
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserIsDisable)
 	}
 
 	if user.Name == "admin" {
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrAdminUserNotAllow)
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrAdminUserNotAllow.Error(), reason.ErrAdminUserNotAllow)
 	}
 
 	roleCount := len(req.RoleNames)
@@ -357,7 +347,7 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 	}
 	notFound := helpers.FindMissingByName(list, req.RoleNames)
 	if len(notFound) > 0 {
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrRoleNotFound).WithMsg(fmt.Sprintf("role not exist: %v", notFound))
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, fmt.Sprintf("role not exist: %v", notFound), reason.ErrRoleNotFound)
 	}
 
 	userCache := helpers.GetRoleCacheKey(user.Name)
@@ -420,18 +410,18 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+			return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
 		}
 		return err
 	}
 
 	if user.Name == "admin" {
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrAdminUserNotAllow)
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrAdminUserNotAllow.Error(), reason.ErrAdminUserNotAllow)
 	}
 
 	if *user.Status == model.UserStatusDisable {
 		logger.WithContext(ctx, true).Errorf("user has been disabled, userName: %s", user.Name)
-		return apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserIsDisable)
 	}
 
 	roleCount := len(req.RoleNames)
@@ -442,10 +432,7 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 
 	notFound := helpers.FindMissingByName(list, req.RoleNames)
 	if len(notFound) > 0 {
-		return apierr.InternalServer().
-			WithStack().
-			WithErr(reason.ErrRoleNotFound).
-			WithMsg(fmt.Sprintf("role not exist: %s", strings.Join(notFound, ",")))
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, fmt.Sprintf("role not exist: %v", notFound), reason.ErrRoleNotFound)
 	}
 
 	userCache := helpers.GetRoleCacheKey(user.Name)
@@ -507,13 +494,13 @@ func (receive *UserSVC) Info(ctx context.Context, req *schema.UserQueryRequest) 
 	user, err := receive.userStore.Query(ctx, options...)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+			return nil, apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
 		}
 		return nil, err
 	}
 	if *user.Status == model.UserStatusDisable {
 		logger.WithContext(ctx, true).Errorf("userstore has been disabled, userName: %s", user.Name)
-		return nil, apierr.InternalServer().WithStack().WithErr(reason.ErrUserNotFound)
+		return nil, apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserIsDisable)
 	}
 
 	res = &schema.UserResponse{}
@@ -567,7 +554,7 @@ func (receive *UserSVC) encryptPassword(_ context.Context, Pass string) (string,
 	hashPwd, err := bcrypt.GenerateFromPassword([]byte(Pass), bcrypt.DefaultCost)
 	if err != nil {
 		logger.WithContext(context.Background(), true).Errorf("failed to encrypt password: %s, error: %v", Pass, err)
-		return "", apierr.InternalServer().WithStack().WithMsg("failed to encrypt password").WithErr(err)
+		return "", apierr.InternalServer().Set(apierr.ServiceErrCode, "unknown error", reason.ErrEncryptPassword)
 	}
 	return string(hashPwd), nil
 }

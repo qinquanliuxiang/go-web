@@ -36,16 +36,21 @@ func ZapMiddleware() gin.HandlerFunc {
 
 		_err, ok := c.Get(constant.LogErrMidwareKey)
 		if ok {
-			switch err := _err.(type) {
+			switch e := _err.(type) {
 			case *apierr.ApiError:
-				caller := err.Stack
+				caller := e.Stack
+				zap.Int("code", e.Code)
+				m, exist := apierr.CodeMsg[e.Code]
+				if exist {
+					fields = append(fields, zap.String("type", m))
+				}
 				fields = append(fields,
-					zap.String("error", err.Error()),
+					zap.String("error", e.Error()),
 					zap.String("caller", caller),
 				)
 			case error:
 				fields = append(fields,
-					zap.String("error", err.Error()),
+					zap.String("error", e.Error()),
 				)
 			}
 		}

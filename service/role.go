@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
 	"qqlx/base/apierr"
 	"qqlx/base/conf"
 	"qqlx/base/helpers"
@@ -14,8 +15,6 @@ import (
 	"qqlx/schema"
 	"qqlx/store"
 	"qqlx/store/rbac"
-
-	"gorm.io/gorm"
 )
 
 type RoleSVC struct {
@@ -50,10 +49,10 @@ func NewRoleSVC(
 
 func (receive *RoleSVC) GetRole(ctx context.Context, req *schema.RoleIDRequest) (role *model.Role, err error) {
 	logger.WithContext(ctx, true).Debugf("get role, request: %#v", req)
-	role, err = receive.roleStore.Query(ctx, rbac.RoleID(req.ID), rbac.LoadUsers(), rbac.LoadPolices())
+	role, err = receive.roleStore.Query(ctx, rbac.RoleID(req.ID), rbac.LoadPolices())
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, apierr.InternalServer().WithMsg("role not found").WithErr(err)
+			return nil, apierr.InternalServer().Set(apierr.ServiceErrCode, "role not found", reason.ErrRoleNotFound)
 		}
 		return nil, err
 	}
@@ -74,7 +73,7 @@ func (receive *RoleSVC) CreateRole(ctx context.Context, req *schema.RoleCreateRe
 		}
 	}
 	if query != nil {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("create role name %s failed", req.Name)).WithErr(reason.ErrRoleExists).WithStack()
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrRoleExists.Error(), reason.ErrRoleExists)
 	}
 
 	id, err = receive.generateID.NextID()
@@ -104,7 +103,7 @@ func (receive *RoleSVC) CreateRole(ctx context.Context, req *schema.RoleCreateRe
 // DeleteRole 删除角色
 func (receive *RoleSVC) DeleteRole(ctx context.Context, req *schema.RoleIDRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("delete role, request: %#v", req)
-	role, err := receive.roleStore.Query(ctx, rbac.RoleID(req.ID), rbac.LoadPolices(), rbac.LoadUsers())
+	role, err := receive.roleStore.Query(ctx, rbac.RoleID(req.ID), rbac.LoadUsers())
 	if err != nil {
 		return err
 	}
@@ -113,7 +112,7 @@ func (receive *RoleSVC) DeleteRole(ctx context.Context, req *schema.RoleIDReques
 		for _, user := range role.Users {
 			userNames = append(userNames, user.Name)
 		}
-		return apierr.InternalServer().WithMsg("failed to delete role").WithErr(fmt.Errorf("role id %s has users %s", role.Name, userNames))
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, fmt.Sprintf("role has user: %v", userNames), reason.ErrRoleHasUser)
 	}
 
 	if receive.ldapEnable {
@@ -162,7 +161,7 @@ func (receive *RoleSVC) AddByPolicy(ctx context.Context, req *schema.RolePolicyR
 		return err
 	}
 	if role.Name == "admin" {
-		return apierr.InternalServer().WithErr(reason.ErrAdminRole).WithStack()
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrAdminUserNotAllow.Error(), reason.ErrAdminUserNotAllow)
 	}
 
 	_, list, err := receive.policyStore.List(ctx, 1, len(reqPolicesIDs), rbac.InPolicy(reqPolicesIDs))
@@ -170,12 +169,12 @@ func (receive *RoleSVC) AddByPolicy(ctx context.Context, req *schema.RolePolicyR
 		return err
 	}
 	if len(list) == 0 {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("policy %v not exists", reqPolicesIDs)).WithErr(reason.ErrPolicyNotFound)
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrPolicyNotFound.Error(), reason.ErrPolicyNotFound)
 	}
 
 	notFound := helpers.FindMissingByID(list, req.PolicyIds)
 	if len(notFound) > 0 {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("policyID %v not exists", notFound)).WithErr(fmt.Errorf("policy not exists")).WithStack()
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, fmt.Sprintf("policy not found: %v", notFound), reason.ErrPolicyNotFound)
 	}
 
 	// role 追加策略
@@ -203,7 +202,7 @@ func (receive *RoleSVC) DeleteByPolicy(ctx context.Context, req *schema.RolePoli
 		return err
 	}
 	if role.Name == "admin" {
-		return apierr.InternalServer().WithErr(reason.ErrAdminRole).WithStack()
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrAdminUserNotAllow.Error(), reason.ErrAdminUserNotAllow)
 	}
 
 	// 获取数据库中的策略
@@ -212,12 +211,12 @@ func (receive *RoleSVC) DeleteByPolicy(ctx context.Context, req *schema.RolePoli
 		return err
 	}
 	if len(list) == 0 {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("policy %v not exists", policesID)).WithErr(reason.ErrPolicyNotFound).WithStack()
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrPolicyNotFound.Error(), reason.ErrPolicyNotFound)
 	}
 
 	notFound := helpers.FindMissingByID(list, req.PolicyIds)
 	if len(notFound) > 0 {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("policyID %v not exists", notFound)).WithErr(fmt.Errorf("policy not exists")).WithStack()
+		return apierr.InternalServer().Set(apierr.ServiceErrCode, fmt.Sprintf("policy not found: %v", notFound), reason.ErrPolicyNotFound)
 	}
 
 	// 删除策略
@@ -232,7 +231,13 @@ func (receive *RoleSVC) DeleteByPolicy(ctx context.Context, req *schema.RolePoli
 
 func (receive *RoleSVC) ListRole(ctx context.Context, req *schema.RoleListRequest) (data *schema.RoleListResponse, err error) {
 	logger.WithContext(ctx, true).Debugf("role list, request: %#v", req)
-	total, roles, err := receive.roleStore.List(ctx, req.Page, req.PageSize, rbac.RoleSortByCreatedDesc())
+	options := make([]rbac.RoleQueryOption, 0)
+	if req.Keyword != "" {
+		options = append(options, rbac.RoleQueryByName(req.Keyword, req.Value))
+	}
+	options = append(options, rbac.RoleSortByCreatedDesc())
+
+	total, roles, err := receive.roleStore.List(ctx, req.Page, req.PageSize, options...)
 	if err != nil {
 		return nil, err
 	}

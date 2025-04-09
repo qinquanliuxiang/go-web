@@ -65,7 +65,7 @@ func (receive *Store) CreateUser(_ context.Context, name, password, email string
 	userReq.Attribute("displayName", []string{name})
 	userReq.Attribute("userPassword", []string{password})
 	if err := receive.ldap.Add(userReq); err != nil {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("ldap create failed, name: %s", name)).WithErr(err)
+		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap create user failed", err)
 	}
 	return nil
 }
@@ -75,7 +75,7 @@ func (receive *Store) DeleteUser(_ context.Context, username string) error {
 	dn := fmt.Sprintf("uid=%s,%s", username, receive.userBase)
 	userReq := ldap.NewDelRequest(dn, nil)
 	if err := receive.ldap.Del(userReq); err != nil {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("ldap delete users failed, username: %s", username)).WithErr(err)
+		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap delete user failed", err)
 	}
 	return nil
 }
@@ -89,7 +89,7 @@ func (receive *Store) UpdateUserPassword(_ context.Context, username, password s
 	}
 
 	if err := receive.ldap.Modify(userReq); err != nil {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("ldap update user password failed, username: %s", username)).WithErr(err)
+		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap update user password failed", err)
 	}
 	return nil
 }
@@ -104,10 +104,10 @@ func (receive *Store) SearchUser(_ context.Context, username string) (*model.Use
 		[]string{"uid", "cn", "sn", "mail", "userPassword"}, nil)
 	searchResult, err := receive.ldap.Search(searchReq)
 	if err != nil {
-		return nil, apierr.InternalServer().WithMsg(fmt.Sprintf("ldap search user failed, username: %s", username)).WithErr(err)
+		return nil, apierr.InternalServer().Set(apierr.LdapErrCode, "ldap search user failed", err)
 	}
 	if len(searchResult.Entries) == 0 {
-		return nil, apierr.InternalServer().WithMsg(fmt.Sprintf("ldap search user failed, username: %s", username)).WithErr(reason.ErrLdapUserNotFound)
+		return nil, apierr.InternalServer().Set(apierr.LdapErrCode, "ldap search user failed", reason.ErrLdapUserNotFound)
 	}
 
 	entre := searchResult.Entries[0]
@@ -137,11 +137,11 @@ func (receive *Store) SearchUserGroups(_ context.Context, username string) (grou
 
 	searchResult, err := receive.ldap.Search(searchReq)
 	if err != nil {
-		return nil, apierr.InternalServer().WithMsg(fmt.Sprintf("ldap search user groups failed, username: %s", username)).WithErr(err)
+		return nil, apierr.InternalServer().Set(apierr.LdapErrCode, "ldap search user groups failed", err)
 	}
 
 	if len(searchResult.Entries) == 0 {
-		return nil, apierr.InternalServer().WithMsg(fmt.Sprintf("ldap search user groups failed, username: %s", username)).WithErr(reason.ErrLdapGroupNotFound)
+		return nil, apierr.InternalServer().Set(apierr.LdapErrCode, "ldap search user groups failed", reason.ErrLdapGroupNotFound)
 	}
 
 	// 解析组名
@@ -161,7 +161,7 @@ func (receive *Store) CreateGroup(_ context.Context, groupName string) error {
 	groupReq.Attribute("cn", []string{groupName})
 	groupReq.Attribute("member", []string{receive.rootDN})
 	if err := receive.ldap.Add(groupReq); err != nil {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("ldap create group failed, groupName: %s", groupName)).WithErr(err).WithStack()
+		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap create group failed", err)
 	}
 	return nil
 }
@@ -171,7 +171,7 @@ func (receive *Store) DeleteGroup(_ context.Context, groupName string) error {
 	groupDN := fmt.Sprintf("cn=%s,%s", groupName, receive.groupBase)
 	groupReq := ldap.NewDelRequest(groupDN, nil)
 	if err := receive.ldap.Del(groupReq); err != nil {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("ldap delete group failed, groupName: %s", groupName)).WithErr(err)
+		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap delete group failed", err)
 	}
 	return nil
 }
@@ -192,7 +192,7 @@ func (receive *Store) SearchGroup(ctx context.Context, groupName string) (exist 
 	)
 	searchResult, err := receive.ldap.Search(searchReq)
 	if err != nil {
-		return false, apierr.InternalServer().WithMsg(fmt.Sprintf("ldap search group failed, groupName: %s", groupName)).WithErr(err).WithStack()
+		return false, apierr.InternalServer().Set(apierr.LdapErrCode, "ldap search group failed", err)
 	}
 	if len(searchResult.Entries) == 0 {
 		logger.WithContext(ctx, true).Infof("ldap search group failed, groupName: %s, group not found", groupName)
@@ -213,7 +213,7 @@ func (receive *Store) AddUserToGroup(_ context.Context, groupName, userName stri
 	groupReq := ldap.NewModifyRequest(groupDN, nil)
 	groupReq.Add("member", []string{userDN})
 	if err := receive.ldap.Modify(groupReq); err != nil {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("ldap add user: %s to group: %s failed", userName, groupName)).WithErr(err)
+		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap add user to group failed", err)
 	}
 	return nil
 }
@@ -227,7 +227,7 @@ func (receive *Store) RemoveUserFromGroup(_ context.Context, groupName, userName
 	groupReq := ldap.NewModifyRequest(groupDN, nil)
 	groupReq.Delete("member", []string{userDN})
 	if err := receive.ldap.Modify(groupReq); err != nil {
-		return apierr.InternalServer().WithMsg(fmt.Sprintf("ldap remove user: %s from group: %s failed", userName, groupName)).WithErr(err).WithStack()
+		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap remove user from group failed", err)
 	}
 	return nil
 }
@@ -249,7 +249,7 @@ func (receive *Store) SearchGroupMembers(_ context.Context, groupName string) (g
 	)
 	searchResult, err := receive.ldap.Search(searchReq)
 	if err != nil {
-		return nil, apierr.InternalServer().WithMsg(fmt.Sprintf("ldap search group members failed, groupName: %s", groupName)).WithErr(err)
+		return nil, apierr.InternalServer().Set(apierr.LdapErrCode, "ldap search group failed", err)
 	}
 
 	group = &model.LdapGroup{
