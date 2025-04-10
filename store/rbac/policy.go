@@ -117,6 +117,13 @@ func (receive *PolicyStore) List(ctx context.Context, page int, pageSize int, op
 		return 0, nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed to count policies", err)
 	}
 
+	if page == -1 && pageSize == -1 {
+		if err = query.Find(&polices).Error; err != nil {
+			return 0, nil, apierr.InternalServer().Set(apierr.DBErrCode, "failed to list policies", err)
+		}
+		return total, polices, nil
+	}
+
 	err = query.
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).

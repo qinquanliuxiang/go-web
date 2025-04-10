@@ -50,7 +50,7 @@ var polices = []schema.PolicyCreateRequest{
 	{
 		Name:     "DeleteUserRole",
 		Path:     "/api/v1/users/:id/roles",
-		Method:   "DELETE",
+		Method:   "POST",
 		Describe: "删除用户角色",
 	},
 	{

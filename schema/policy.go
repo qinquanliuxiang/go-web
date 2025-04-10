@@ -23,8 +23,8 @@ type PolicyUpdateRequest struct {
 }
 
 type PolicyListRequest struct {
-	Page     int `form:"page" validate:"required,gt=0" json:"page"`
-	PageSize int `form:"pageSize" validate:"required,gt=0" json:"pageSize"`
+	Page     int `form:"page" validate:"required,gt=0|eq=-1" json:"page"`
+	PageSize int `form:"pageSize" validate:"required,gt=0|eq=-1" json:"pageSize"`
 }
 
 type PolicyListResponse struct {

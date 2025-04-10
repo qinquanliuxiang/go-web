@@ -19,7 +19,18 @@ import (
 )
 
 func InitApplication(ctx context.Context) (*app.Application, func(), error) {
-	panic(wire.Build(
+	//panic(wire.Build(
+	//	server.NewHttpServer,
+	//	store.ProviderStore,
+	//	service.ProviderService,
+	//	validator.ProviderValidator,
+	//	handler.ProviderHandler,
+	//	controller.ProviderContr,
+	//	middleware.ProviderMiddleware,
+	//	router.ProviderRouter,
+	//	app.NewApplication,
+	//))
+	wire.Build(
 		server.NewHttpServer,
 		store.ProviderStore,
 		service.ProviderService,
@@ -29,5 +40,6 @@ func InitApplication(ctx context.Context) (*app.Application, func(), error) {
 		middleware.ProviderMiddleware,
 		router.ProviderRouter,
 		app.NewApplication,
-	))
+	)
+	return nil, nil, nil
 }

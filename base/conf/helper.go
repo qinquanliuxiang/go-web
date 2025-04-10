@@ -2,6 +2,7 @@ package conf
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"qqlx/base/constant"
 	"time"
 
@@ -59,21 +60,22 @@ func GetJwtSecret() (string, error) {
 func GetJwtIssuer() string {
 	issuer := viper.GetString("jwt.issuer")
 	if issuer == "" {
+		zap.S().Infof("jwt.issuer is empty, set default jwt.issuer: %s", constant.DefaultJwtIssuer)
 		return constant.DefaultJwtIssuer
 	}
 	return issuer
 }
 
 func GetJwtExpirationTime() (time.Duration, error) {
-	timeOut := viper.GetString("jwt.expirationTime")
-	if timeOut == "" {
-		timeOut = constant.DefaultJwtExpireTime
+	expireTime := viper.GetDuration("jwt.expireTime")
+	if expireTime == 0 {
+		expire, err := time.ParseDuration(constant.DefaultJwtExpireTime)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parser jwt.expireTime err: %v", err)
+		}
+		return expire, nil
 	}
-	expire, err := time.ParseDuration(timeOut)
-	if err != nil {
-		return 0, fmt.Errorf("parse jwt.expirationTime failed: %w", err)
-	}
-	return expire, nil
+	return expireTime, nil
 }
 
 func GetCasbinDsn() (string, error) {
@@ -122,6 +124,30 @@ func GetMysqlDsn() (dsn string, err error) {
 	return dsn, nil
 }
 
+func GetMysqlMaxIdleConns() int {
+	maxIdleConns := viper.GetInt("mysql.maxIdleConns")
+	if maxIdleConns == 0 {
+		return 10
+	}
+	return maxIdleConns
+}
+
+func GetMysqlMaxOpenConns() int {
+	maxOpenConns := viper.GetInt("mysql.maxOpenConns")
+	if maxOpenConns == 0 {
+		return 10
+	}
+	return maxOpenConns
+}
+
+func GetMysqlMaxLifetime() time.Duration {
+	maxLifetime := viper.GetDuration("mysql.maxLifetime")
+	if maxLifetime == 0 {
+		return 30 * time.Minute
+	}
+	return maxLifetime
+}
+
 func GetRedisPassword() (string, error) {
 	password := viper.GetString("redis.password")
 	if password == "" {
@@ -168,15 +194,17 @@ func GetRedisMode() string {
 }
 
 func GetRedisExpireTime() (time.Duration, error) {
-	expireTime := viper.GetString("redis.expireTime")
-	if expireTime == "" {
-		expireTime = constant.DefaultRedisExpireTime
+	expireTime := viper.GetDuration("redis.expireTime")
+	if expireTime == 0 {
+		duration, err := time.ParseDuration(constant.DefaultRedisExpireTime)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parser constant.DefaultRedisExpireTime err: %v", err)
+		}
+		zap.S().Infof("redis.expireTime is empty, set default expireTime: %s", constant.DefaultRedisExpireTime)
+		return duration, nil
 	}
-	expire, err := time.ParseDuration(expireTime)
-	if err != nil {
-		return 0, fmt.Errorf("parse redis.expireTime failed: %w", err)
-	}
-	return expire, nil
+
+	return expireTime, nil
 }
 
 func GetRedisKeyPrefix() (string, error) {

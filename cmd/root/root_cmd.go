@@ -1,7 +1,7 @@
 package root
 
 import (
-	"os"
+	"log"
 	"qqlx/base/conf"
 	"qqlx/base/constant"
 	"qqlx/cmd/root/init_data"
@@ -24,6 +24,6 @@ func init() {
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+		log.Fatal(err.Error())
 	}
 }

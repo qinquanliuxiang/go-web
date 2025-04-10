@@ -2,13 +2,12 @@ package data
 
 import (
 	"fmt"
-	"qqlx/base/conf"
-
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"qqlx/base/conf"
 )
 
 func InitMySQL() (*gorm.DB, func(), error) {
@@ -45,9 +44,11 @@ func InitMySQL() (*gorm.DB, func(), error) {
 	}
 
 	// 设置空闲连接池中连接的最大数量
-	sqlDB.SetMaxIdleConns(viper.GetInt("mysql.maxIdleConns"))
+	sqlDB.SetMaxIdleConns(conf.GetMysqlMaxIdleConns())
 	// 设置数据库的最大打开连接数
-	sqlDB.SetMaxOpenConns(viper.GetInt("mysql.maxOpenConns"))
+	sqlDB.SetMaxOpenConns(conf.GetMysqlMaxOpenConns())
+	// 设置连接的最大生命周期
+	sqlDB.SetConnMaxLifetime(conf.GetMysqlMaxLifetime())
 
 	zap.S().Info("mysql database initialization completed")
 	return dbInstance, func() { _ = sqlDB.Close() }, nil

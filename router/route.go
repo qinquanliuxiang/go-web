@@ -55,7 +55,7 @@ func (a *ApiRoute) RegisterApiRoleRoute(r *gin.RouterGroup, authorization *middl
 	roleGroup.GET("/:id", a.roleCtrl.GetHandler)
 	roleGroup.DELETE("/:id", a.roleCtrl.DeleteHandler)
 	roleGroup.PUT("/:id/polices", a.roleCtrl.AddRoleByPolicyHandler)
-	roleGroup.DELETE("/:id/polices", a.roleCtrl.DeleteRoleByPolicyHandler)
+	roleGroup.POST("/:id/polices", a.roleCtrl.DeleteRoleByPolicyHandler)
 }
 
 func (a *ApiRoute) RegisterApiPolicyRoute(r *gin.RouterGroup, authorization *middleware.AuthorizationMiddleware) {

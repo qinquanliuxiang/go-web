@@ -3,6 +3,7 @@ package run
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"log"
@@ -30,31 +31,32 @@ var Cmd = &cobra.Command{
 			}
 		}
 	},
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		var (
 			cf  string
 			err error
 		)
 		cf, err = cmd.Flags().GetString(constant.FlagConfigPath)
 		if err != nil {
-			return err
+			log.Fatalf(err.Error())
 		}
 		if cf == "" {
-			return errors.New("config file path is empty")
+			log.Fatal("config file path is empty")
 		}
-		return runApp(cf)
+		runApp(cf)
 	},
 }
 
-func runApp(configPath string) error {
+func runApp(configPath string) {
 	err := conf.LoadConfig(configPath)
 	if err != nil {
-		log.Fatalf("load config file %s faild: %v", configPath, err)
+		log.Fatalf(fmt.Sprintf("load config file %s faild: %v", configPath, err))
 	}
 	logger.InitLogger()
 	err = jwt.InitConf()
+	err = errors.New("testTEst")
 	if err != nil {
-		return err
+		zap.S().Fatal(err)
 	}
 	ctx := context.Background()
 	application, cleanup, err := cmd.InitApplication(ctx)
@@ -63,10 +65,9 @@ func runApp(configPath string) error {
 		cleanup()
 	}()
 	if err != nil {
-		return err
+		zap.S().Fatal(err)
 	}
 	if err = application.Run(ctx); err != nil {
-		return err
+		zap.S().Fatal(err)
 	}
-	return nil
 }
