@@ -23,8 +23,10 @@ type PolicyUpdateRequest struct {
 }
 
 type PolicyListRequest struct {
-	Page     int `form:"page" validate:"required,gt=0|eq=-1" json:"page"`
-	PageSize int `form:"pageSize" validate:"required,gt=0|eq=-1" json:"pageSize"`
+	Page     int    `form:"page" validate:"required,gt=0|eq=-1" json:"page"`
+	PageSize int    `form:"pageSize" validate:"required,gt=0|eq=-1" json:"pageSize"`
+	Keyword  string `form:"keyword" validate:"omitempty,oneof=name"` // 支持 name 前缀模糊搜索
+	Value    string `form:"value" validate:"required_with=Keyword"`
 }
 
 type PolicyListResponse struct {

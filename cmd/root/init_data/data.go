@@ -84,21 +84,15 @@ var polices = []schema.PolicyCreateRequest{
 		Describe: "删除角色",
 	},
 	{
-		Name:     "deleteRole",
-		Path:     "/api/v1/role/deleteRole",
-		Method:   "POST",
-		Describe: "删除角色",
-	},
-	{
 		Name:     "updateRolePolices",
 		Path:     "/api/v1/roles/:id/polices",
-		Method:   "POST",
+		Method:   "PUT",
 		Describe: "增加角色的权限",
 	},
 	{
 		Name:     "deleteRolePolices",
 		Path:     "/api/v1/roles/:id/polices",
-		Method:   "DELETE",
+		Method:   "POST",
 		Describe: "删除角色权限",
 	},
 	{
@@ -128,7 +122,7 @@ var polices = []schema.PolicyCreateRequest{
 	{
 		Name:     "deletePolicy",
 		Path:     "/api/v1/polices/:id",
-		Method:   "POST",
+		Method:   "DELETE",
 		Describe: "删除策略",
 	},
 }

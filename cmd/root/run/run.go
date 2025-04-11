@@ -2,10 +2,6 @@ package run
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 	"log"
 	"os"
 	"qqlx/base/conf"
@@ -13,6 +9,9 @@ import (
 	"qqlx/base/logger"
 	"qqlx/cmd"
 	"qqlx/pkg/jwt"
+
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var Cmd = &cobra.Command{
@@ -38,7 +37,7 @@ var Cmd = &cobra.Command{
 		)
 		cf, err = cmd.Flags().GetString(constant.FlagConfigPath)
 		if err != nil {
-			log.Fatalf(err.Error())
+			log.Fatalf("get config file path faild: %v", err)
 		}
 		if cf == "" {
 			log.Fatal("config file path is empty")
@@ -50,11 +49,10 @@ var Cmd = &cobra.Command{
 func runApp(configPath string) {
 	err := conf.LoadConfig(configPath)
 	if err != nil {
-		log.Fatalf(fmt.Sprintf("load config file %s faild: %v", configPath, err))
+		log.Fatalf("load config file %s faild: %v", configPath, err)
 	}
 	logger.InitLogger()
 	err = jwt.InitConf()
-	err = errors.New("testTEst")
 	if err != nil {
 		zap.S().Fatal(err)
 	}

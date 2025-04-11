@@ -94,7 +94,13 @@ func (receive *PolicySVC) UpdatePolicy(ctx context.Context, req *schema.PolicyUp
 
 func (receive *PolicySVC) List(ctx context.Context, req *schema.PolicyListRequest) (res *schema.PolicyListResponse, err error) {
 	logger.WithContext(ctx, false).Debugf("policy list, request: %#v", req)
-	total, polices, err := receive.policyStore.List(ctx, req.Page, req.PageSize, rbac.PolicySortByCreatedDesc())
+	options := make([]rbac.PolicyQueryOption, 0, 2)
+	if req.Keyword != "" {
+		options = append(options, rbac.PolicyQueryByName(req.Keyword, req.Value))
+	}
+	options = append(options, rbac.PolicySortByCreatedDesc())
+
+	total, polices, err := receive.policyStore.List(ctx, req.Page, req.PageSize, options...)
 	if err != nil {
 		return nil, err
 	}

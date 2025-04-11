@@ -25,7 +25,7 @@ type RolePolicyRequest struct {
 type RoleListRequest struct {
 	Page     int    `form:"page" validate:"required,gt=0|eq=-1"`
 	PageSize int    `form:"pageSize" validate:"required,gt=0|eq=-1"`
-	Keyword  string `form:"keyword" validate:"omitempty,oneof=name"` // 支持 name 或 email 前缀模糊搜索
+	Keyword  string `form:"keyword" validate:"omitempty,oneof=name"` // 支持 name 前缀模糊搜索
 	Value    string `form:"value" validate:"required_with=Keyword"`
 }
 

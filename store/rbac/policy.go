@@ -45,6 +45,18 @@ func InPolicy(ids []int) PolicyQueryOption {
 	}
 }
 
+// PolicyQueryByName 根据 name 进行前缀查询
+func PolicyQueryByName(keyword string, value string) PolicyQueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		likeVal := value + "%"
+		switch keyword {
+		case "name":
+			query = query.Where("name LIKE ?", likeVal)
+		}
+		return query
+	}
+}
+
 type PolicyDeleteOption func(query *gorm.DB) *gorm.DB
 
 // PolicyUnscoped 永久删除 policy
