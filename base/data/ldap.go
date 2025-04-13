@@ -3,6 +3,7 @@ package data
 import (
 	"fmt"
 	"github.com/go-ldap/ldap/v3"
+	"go.uber.org/zap"
 	"qqlx/base/conf"
 )
 
@@ -34,5 +35,6 @@ func InitLdap() (l *ldap.Conn, close func(), err error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("bind ldap failed, username: %s, err: %w", username, err)
 	}
+	zap.S().Info("ldap connect success")
 	return l, func() { _ = l.Close() }, nil
 }

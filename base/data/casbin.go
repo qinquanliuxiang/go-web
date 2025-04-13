@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"os"
 	"qqlx/base/conf"
 
@@ -50,6 +51,6 @@ func InitCasbin() (e *casbin.Enforcer, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load policy, %w", err)
 	}
-
+	zap.S().Info("casbin init success")
 	return e, nil
 }

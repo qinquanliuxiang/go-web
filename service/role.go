@@ -97,7 +97,20 @@ func (receive *RoleSVC) CreateRole(ctx context.Context, req *schema.RoleCreateRe
 			}
 		}
 	}
-	return receive.roleStore.Create(ctx, role)
+	err = receive.roleStore.Create(ctx, role)
+	if err != nil {
+		return err
+	}
+	if len(req.PolicyIds) > 0 {
+		err = receive.AddByPolicy(ctx, &schema.RolePolicyRequest{
+			ID:        id,
+			PolicyIds: req.PolicyIds,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DeleteRole 删除角色

@@ -50,6 +50,6 @@ func InitMySQL() (*gorm.DB, func(), error) {
 	// 设置连接的最大生命周期
 	sqlDB.SetConnMaxLifetime(conf.GetMysqlMaxLifetime())
 
-	zap.S().Info("mysql database initialization completed")
+	zap.S().Info("mysql connect success")
 	return dbInstance, func() { _ = sqlDB.Close() }, nil
 }

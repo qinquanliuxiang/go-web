@@ -9,8 +9,9 @@ type RoleIDRequest struct {
 }
 
 type RoleCreateRequest struct {
-	Name     string `json:"name" validate:"required"`
-	Describe string `json:"desc" validate:"required"`
+	Name      string `json:"name" validate:"required"`
+	Describe  string `json:"describe" validate:"required"`
+	PolicyIds []int  `json:"policyIds"`
 }
 
 type RoleUpdateRequest struct {

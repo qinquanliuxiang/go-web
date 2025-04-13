@@ -72,6 +72,17 @@ func (receive *UserSVC) RegistryUser(ctx context.Context, req *schema.UserRegist
 			return err
 		}
 
+		// 创建 ldap 用户
+		if receive.ldapEnable {
+			// 生成 ldap ssha 密码
+			ssha := receive.ldapEncryptSSHA(req.Password)
+			// 创建 ldap 用户
+			err = receive.ldap.CreateUser(ctx, req.Name, ssha, req.Email)
+			if err != nil {
+				return err
+			}
+		}
+
 		encryptPassword, err = receive.encryptPassword(ctx, req.Password)
 		if err != nil {
 			return err
@@ -93,17 +104,7 @@ func (receive *UserSVC) RegistryUser(ctx context.Context, req *schema.UserRegist
 			return err
 		}
 
-		// 生成 ldap ssha 密码
-		ssha := receive.ldapEncryptSSHA(req.Password)
-		if receive.ldapEnable {
-			// 创建 ldap 用户
-			err = receive.ldap.CreateUser(ctx, req.Name, ssha, req.Email)
-			if err != nil {
-				return err
-			}
-		}
 	}
-
 	if user != nil {
 		return apierr.InternalServer().Set(apierr.ServiceErrCode, "user already exists", reason.ErrUserExists)
 	}
@@ -153,14 +154,10 @@ func (receive *UserSVC) Login(ctx context.Context, req *schema.UserLoginRequest)
 }
 
 func (receive *UserSVC) Logout(ctx context.Context, id int) (err error) {
-	query, err := receive.userStore.Query(ctx, userstore.ID(id))
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserNotFound)
-		}
-		return err
+	query, _ := receive.userStore.Query(ctx, userstore.ID(id))
+	if query.Name != "" {
+		_ = receive.cache.Del(ctx, helpers.GetRoleCacheKey(query.Name))
 	}
-	_ = receive.cache.Del(ctx, helpers.GetRoleCacheKey(query.Name))
 	return nil
 }
 
@@ -178,6 +175,15 @@ func (receive *UserSVC) DisableUser(ctx context.Context, req *schema.UserQueryRe
 		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrAdminUserNotAllow.Error(), reason.ErrAdminUserNotAllow)
 	}
 
+	// 删除 ldap 用户
+	if receive.ldapEnable {
+		// 删除用户后，所在组中的记录也会被删除
+		err = receive.ldap.DeleteUser(ctx, user.Name)
+		if err != nil {
+			return err
+		}
+	}
+
 	if *user.Status == model.UserStatusDisable {
 		logger.WithContext(ctx, true).Errorf("user has been disabled, userName: %s", user.Name)
 		return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserIsDisable)
@@ -189,19 +195,7 @@ func (receive *UserSVC) DisableUser(ctx context.Context, req *schema.UserQueryRe
 		return err
 	}
 
-	err = receive.cache.Del(ctx, helpers.GetRoleCacheKey(user.Name))
-	if err != nil {
-		return err
-	}
-
-	if receive.ldapEnable {
-		// 删除用户后，所在组中的记录也会被删除
-		err = receive.ldap.DeleteUser(ctx, user.Name)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return receive.cache.Del(ctx, helpers.GetRoleCacheKey(user.Name))
 }
 
 func (receive *UserSVC) EnableUser(ctx context.Context, req *schema.UserEnableRequest) (err error) {
@@ -219,18 +213,7 @@ func (receive *UserSVC) EnableUser(ctx context.Context, req *schema.UserEnableRe
 		return nil
 	}
 
-	user.Status = &model.UserStatusAvailable
-	password, err := receive.encryptPassword(ctx, req.Password)
-	if err != nil {
-		return err
-	}
-
-	user.Password = password
-	err = receive.userStore.Save(ctx, user)
-	if err != nil {
-		return err
-	}
-
+	// 添加 ldap 用户
 	if receive.ldapEnable {
 		ldapPassword := receive.ldapEncryptSSHA(req.Password)
 		err = receive.ldap.CreateUser(ctx, user.Name, ldapPassword, user.Email)
@@ -248,7 +231,15 @@ func (receive *UserSVC) EnableUser(ctx context.Context, req *schema.UserEnableRe
 			}
 		}
 	}
-	return nil
+
+	user.Status = &model.UserStatusAvailable
+	password, err := receive.encryptPassword(ctx, req.Password)
+	if err != nil {
+		return err
+	}
+
+	user.Password = password
+	return receive.userStore.Save(ctx, user)
 }
 
 func (receive *UserSVC) UpdatePassword(ctx context.Context, req *schema.UserUpdatePasswordRequest) (err error) {
@@ -270,23 +261,21 @@ func (receive *UserSVC) UpdatePassword(ctx context.Context, req *schema.UserUpda
 		return apierr.InternalServer().Set(apierr.ServiceErrCode, "invalid password", reason.ErrInvalidPassword)
 	}
 
-	encryptPassword, err := receive.encryptPassword(ctx, req.NewPassword)
-	if err != nil {
-		return err
-	}
-	user.Password = encryptPassword
-
-	err = receive.userStore.Save(ctx, user)
-	if err != nil {
-		return err
-	}
+	// 更新 ldap 用户
 	if receive.ldapEnable {
 		err = receive.ldap.UpdateUserPassword(ctx, user.Name, req.NewPassword)
 		if err != nil {
 			return err
 		}
 	}
-	return nil
+
+	encryptPassword, err := receive.encryptPassword(ctx, req.NewPassword)
+	if err != nil {
+		return err
+	}
+	user.Password = encryptPassword
+
+	return receive.userStore.Save(ctx, user)
 }
 
 func (receive *UserSVC) UpdateUser(ctx context.Context, req *schema.UserUpdateRequest) (err error) {
@@ -323,6 +312,7 @@ func (receive *UserSVC) UpdateUser(ctx context.Context, req *schema.UserUpdateRe
 // UserAddRole 增加用户角色
 func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateRoleRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("user update role, request: %#v", req)
+	roleNames := helpers.Deduplicate(req.RoleNames)
 	var user *model.User
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
 	if err != nil {
@@ -340,12 +330,12 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 		return apierr.InternalServer().Set(apierr.ServiceErrCode, reason.ErrAdminUserNotAllow.Error(), reason.ErrAdminUserNotAllow)
 	}
 
-	roleCount := len(req.RoleNames)
-	_, list, err := receive.roleStore.List(ctx, 1, roleCount, rbac.RoleNames(req.RoleNames))
+	roleCount := len(roleNames)
+	_, list, err := receive.roleStore.List(ctx, 1, roleCount, rbac.RoleNames(roleNames))
 	if err != nil {
 		return err
 	}
-	notFound := helpers.FindMissingByName(list, req.RoleNames)
+	notFound := helpers.FindMissingByName(list, roleNames)
 	if len(notFound) > 0 {
 		return apierr.InternalServer().Set(apierr.ServiceErrCode, fmt.Sprintf("role not exist: %v", notFound), reason.ErrRoleNotFound)
 	}
@@ -353,6 +343,27 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 	userCache := helpers.GetRoleCacheKey(user.Name)
 	if err = receive.cache.Del(ctx, userCache); err != nil {
 		return err
+	}
+
+	// 更新 ldap
+	if receive.ldapEnable {
+		for _, roleName := range roleNames {
+			var exist bool
+			exist, err = receive.ldap.SearchGroup(ctx, roleName)
+			if err != nil {
+				return err
+			}
+			if !exist {
+				err = receive.ldap.CreateGroup(ctx, roleName)
+				if err != nil {
+					return err
+				}
+			}
+			err = receive.ldap.AddUserToGroup(ctx, roleName, user.Name)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	err = receive.userRoleStore.AppendRoles(ctx, user, list)
@@ -382,30 +393,12 @@ func (receive *UserSVC) UserAddRole(ctx context.Context, req *schema.UserUpdateR
 		}
 	}()
 
-	if receive.ldapEnable {
-		for _, roleName := range req.RoleNames {
-			var exist bool
-			exist, err = receive.ldap.SearchGroup(ctx, roleName)
-			if err != nil {
-				return err
-			}
-			if !exist {
-				err = receive.ldap.CreateGroup(ctx, roleName)
-				if err != nil {
-					return err
-				}
-			}
-			err = receive.ldap.AddUserToGroup(ctx, roleName, user.Name)
-			if err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
 func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpdateRoleRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("user remove role, request: %#v", req)
+	uniqRoleNames := helpers.Deduplicate(req.RoleNames)
 	var user *model.User
 	user, err = receive.userStore.Query(ctx, userstore.ID(req.ID))
 	if err != nil {
@@ -424,15 +417,25 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 		return apierr.InternalServer().Set(apierr.ServiceErrCode, "user not found", reason.ErrUserIsDisable)
 	}
 
-	roleCount := len(req.RoleNames)
-	_, list, err := receive.roleStore.List(ctx, 1, roleCount, rbac.RoleNames(req.RoleNames))
+	roleCount := len(uniqRoleNames)
+	_, list, err := receive.roleStore.List(ctx, 1, roleCount, rbac.RoleNames(uniqRoleNames))
 	if err != nil {
 		return err
 	}
 
-	notFound := helpers.FindMissingByName(list, req.RoleNames)
+	notFound := helpers.FindMissingByName(list, uniqRoleNames)
 	if len(notFound) > 0 {
 		return apierr.InternalServer().Set(apierr.ServiceErrCode, fmt.Sprintf("role not exist: %v", notFound), reason.ErrRoleNotFound)
+	}
+
+	// 删除 ldap 用户
+	if receive.ldapEnable {
+		for _, roleName := range uniqRoleNames {
+			err = receive.ldap.RemoveUserFromGroup(ctx, roleName, user.Name)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	userCache := helpers.GetRoleCacheKey(user.Name)
@@ -467,14 +470,6 @@ func (receive *UserSVC) UserRemoveRole(ctx context.Context, req *schema.UserUpda
 		}
 	}()
 
-	if receive.ldapEnable {
-		for _, roleName := range req.RoleNames {
-			err = receive.ldap.RemoveUserFromGroup(ctx, roleName, user.Name)
-			if err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
