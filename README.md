@@ -3,12 +3,14 @@
 ## 简介
 
 GO 编写的 WEB 框架，此框架基于流行的`Gin`框架构建。
+前端地址：[https://github.com/qinquanliuxiang/go-web-react.git](https://github.com/qinquanliuxiang/go-web-react.git)
 
 ## 核心特性
 
 1. 用户管理：用户注册、登录、资料更新等功能。
-2. 角色管理：支持多种角色定义，便于组织结构化权限分配。
-3. 权限控制：利用`Casbin`实现精确到资源级别的访问控制。
+2. 集成 `ldap`, 用户同步 `ldap` 并且支持用户组。
+3. 角色管理：支持多种角色定义，便于组织结构化权限分配。
+4. 权限控制：利用`Casbin`实现精确到资源级别的访问控制。
 
 ## 技术栈
 
@@ -31,9 +33,15 @@ go build -o .
 # env
 export CONFIG_PATH=configPath
 export CASBIN_MODE_PATH=modelPath
-./qqlx init
 
-# 选项
+# wire install
+go install github.com/google/wire/cmd/wire@latest
+# wire build
+wire ./cmd/wire.go
+
+# init data
+./qqlx init
+# init data with options
 ./qqlx init -C configPath -M modelPath
 ```
 
@@ -49,7 +57,7 @@ export CONFIG_PATH=configPath
 export CASBIN_MODE_PATH=modelPath
 ./qqlx run
 
-# 选项
+# start with options
 ./qqlx run -C configPath -M modelPath
 ```
 
