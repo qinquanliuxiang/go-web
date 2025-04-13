@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: qinquanliuxiang/go-web
+  IMAGE_NAME: qqlx/go-web
 
 jobs:
   build-and-push:
