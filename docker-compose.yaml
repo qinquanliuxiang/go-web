@@ -1,6 +1,6 @@
 services:
   backend:
-    image: registry.cn-beijing.aliyuncs.com/qqlx/qqlx:${IMAGE_VERSION}
+    image: docker.io/qqlx/go-web:latest
     restart: always
     ports:
       - 8080:8080

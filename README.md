@@ -39,30 +39,23 @@ go install github.com/google/wire/cmd/wire@latest
 # wire build
 wire ./cmd/wire.go
 
+# edit config
+cp example.yaml config.yaml
+
 # init data
 ./qqlx init
 # init data with options
-./qqlx init -C configPath -M modelPath
+./qqlx init -C config.yaml -M model.conf
 ```
 
-## 启动服务
-
-### 二进制启动
-
-```bash
-go build -o .
-
-# env
-export CONFIG_PATH=configPath
-export CASBIN_MODE_PATH=modelPath
-./qqlx run
-
-# start with options
-./qqlx run -C configPath -M modelPath
-```
+## **启动服务**
 
 ### Docker 启动
 
 ```bash
-IMAGE_VERSION=1.0 docker compose up -d
+# 拷贝修改配置文件
+cp example.yaml config.yaml
+
+# 启动
+docker compose up -d
 ```
