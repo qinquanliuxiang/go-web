@@ -5,6 +5,8 @@ server:
   logLevel: debug
   # md5加盐
   salt: xtsds
+  # 压缩
+  compress: true
 
 casbin:
   # casbin 模型配置

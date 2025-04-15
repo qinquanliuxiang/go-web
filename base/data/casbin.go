@@ -2,9 +2,10 @@ package data
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"qqlx/base/conf"
+
+	"go.uber.org/zap"
 
 	"github.com/casbin/casbin/v2"
 

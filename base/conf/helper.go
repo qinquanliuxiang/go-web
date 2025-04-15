@@ -2,12 +2,18 @@ package conf
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"qqlx/base/constant"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/spf13/viper"
 )
+
+func GetResponseCompress() bool {
+	compress := viper.GetBool("server.compress")
+	return compress
+}
 
 func GetLogLevel() string {
 	logLevel := viper.GetString("server.logLevel")

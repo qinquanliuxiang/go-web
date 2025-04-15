@@ -9,6 +9,7 @@ import (
 	"qqlx/router"
 	"time"
 
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )
 
@@ -76,7 +77,12 @@ func NewHttpServer(
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
+
 	r := gin.New()
+	if conf.GetResponseCompress() {
+		r.Use(gzip.Gzip(gzip.DefaultCompression, gzip.WithExcludedPaths([]string{"/api/v1/healthz"})))
+	}
+
 	r.GET("/healthz", func(ctx *gin.Context) { ctx.String(200, "OK") })
 	r.Use(middleware.ZapMiddleware(), middleware.RequestIDMiddleware(), middleware.CorssDomainMiddleware(), gin.Recovery())
 
