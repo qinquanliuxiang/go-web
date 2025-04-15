@@ -3,14 +3,12 @@ package init_data
 import (
 	"context"
 	"fmt"
-	"github.com/go-ldap/ldap/v3"
-	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 	"log"
 	"os"
 	"qqlx/base/conf"
 	"qqlx/base/constant"
 	"qqlx/base/data"
+	"qqlx/base/helpers"
 	"qqlx/base/logger"
 	"qqlx/model"
 	"qqlx/pkg/sonyflake"
@@ -20,6 +18,10 @@ import (
 	ldapstore "qqlx/store/ldap"
 	"qqlx/store/rbac"
 	"qqlx/store/userstore"
+
+	"github.com/go-ldap/ldap/v3"
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 var InitCmd = &cobra.Command{
@@ -121,19 +123,27 @@ func initData(cf string) {
 	// Create Role
 	err = roleSvc.CreateRole(ctxValue, &schema.RoleCreateRequest{
 		Name:     "admin",
-		Describe: "超级管理员",
+		Describe: "超级管理员, 拥有接口所有权限",
 	})
 	if err != nil {
 		logger.Caller().Error(err)
 	}
 	err = roleSvc.CreateRole(ctxValue, &schema.RoleCreateRequest{
 		Name:     "view",
-		Describe: "查看",
+		Describe: "拥有所有 GET 接口权限",
+	})
+	if err != nil {
+		logger.Caller().Error(err)
+	}
+	err = roleSvc.CreateRole(ctxValue, &schema.RoleCreateRequest{
+		Name:     "rbac",
+		Describe: "拥有用户、角色、权限 所有接口权限",
 	})
 	if err != nil {
 		logger.Caller().Error(err)
 	}
 
+	// Create Role Polices
 	adminRole, err := roleRepo.Query(ctxValue, rbac.RoleName("admin"))
 	if err != nil {
 		logger.Caller().Error(err)
@@ -142,7 +152,6 @@ func initData(cf string) {
 	if err != nil {
 		logger.Caller().Error(err)
 	}
-
 	// role 添加权限
 	err = appendStore.AppendPolicy(ctxValue, adminRole, []model.Policy{*adminPolicy})
 	if err != nil {
@@ -153,6 +162,7 @@ func initData(cf string) {
 		zap.S().Error(err)
 	}
 
+	// view role 添加权限
 	viewRole, err := roleRepo.Query(ctxValue, rbac.RoleName("view"))
 	if err != nil {
 		logger.Caller().Error(err)
@@ -161,7 +171,6 @@ func initData(cf string) {
 	if err != nil {
 		logger.Caller().Error(err)
 	}
-
 	err = appendStore.AppendPolicy(ctxValue, viewRole, []model.Policy{*viewPolicy})
 	if err != nil {
 		logger.Caller().Error(err)
@@ -171,26 +180,49 @@ func initData(cf string) {
 		zap.S().Error(err)
 	}
 
+	// rbac role 添加权限
+	rbacRole, err := roleRepo.Query(ctxValue, rbac.RoleName("rbac"))
+	if err != nil {
+		logger.Caller().Error(err)
+	}
+	_, rbacPolicy, err := policyStore.List(ctxValue, -1, -1, rbac.NotInPolicyNames([]string{"admin", "view"}))
+	if err != nil {
+		logger.Caller().Error(err)
+	}
+	err = appendStore.AppendPolicy(ctxValue, rbacRole, rbacPolicy)
+	if err != nil {
+		logger.Caller().Error(err)
+	}
+	casbinPolicy := helpers.GetCasbinRole("rbac", rbacPolicy)
+	err = casbinStore.CreateRolePolices(ctxValue, casbinPolicy)
+	if err != nil {
+		logger.Caller().Error(err)
+	}
+
 	userSvc, err := service.NewUserSVC(generateIDStruct, userRepo, userRoleStore, roleRepo, cacheStore, casbinStore, ldapStore)
 	if err != nil {
 		logger.Caller().Error(err)
 		return
 	}
-	_ = userSvc.RegistryUser(ctxValue, &schema.UserRegistryRequest{
+	adminReq := &schema.UserRegistryRequest{
 		Name:     "admin",
 		Password: "12345678",
 		NickName: "超级管理员",
-		Email:    "admin@example.com",
+		Email:    "admin@qq.com",
 		Avatar:   "https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif",
 		Mobile:   "13800000000",
-	})
-	adminUser, err := userRepo.Query(ctxValue, userstore.Name("admin"))
-	if err != nil {
-		zap.S().Error(err)
+	}
+	if err = userSvc.RegistryUser(ctxValue, adminReq); err != nil {
+		logger.Caller().Errorf("init admin user failed: %v", err)
 		return
 	}
-	err = userSvc.UserAddRole(ctxValue, &schema.UserUpdateRoleRequest{ID: adminUser.ID, RoleNames: []string{"admin"}})
+	adminUser, err := userRepo.Query(ctxValue, userstore.Name("admin"))
 	if err != nil {
-		zap.S().Error(err)
+		logger.Caller().Errorf("init admin user failed: %v", err)
+		return
 	}
+	if err = userRoleStore.AppendRoles(ctxValue, adminUser, []model.Role{*adminRole}); err != nil {
+		logger.Caller().Error(err)
+	}
+	zap.S().Info("init data complete")
 }

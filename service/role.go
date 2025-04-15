@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"qqlx/base/apierr"
 	"qqlx/base/conf"
 	"qqlx/base/helpers"
@@ -15,6 +14,8 @@ import (
 	"qqlx/schema"
 	"qqlx/store"
 	"qqlx/store/rbac"
+
+	"gorm.io/gorm"
 )
 
 type RoleSVC struct {
@@ -116,7 +117,7 @@ func (receive *RoleSVC) CreateRole(ctx context.Context, req *schema.RoleCreateRe
 // DeleteRole 删除角色
 func (receive *RoleSVC) DeleteRole(ctx context.Context, req *schema.RoleIDRequest) (err error) {
 	logger.WithContext(ctx, true).Debugf("delete role, request: %#v", req)
-	role, err := receive.roleStore.Query(ctx, rbac.RoleID(req.ID), rbac.LoadUsers())
+	role, err := receive.roleStore.Query(ctx, rbac.RoleID(req.ID), rbac.LoadUsers(), rbac.LoadPolices())
 	if err != nil {
 		return err
 	}

@@ -45,6 +45,13 @@ func InPolicy(ids []int) PolicyQueryOption {
 	}
 }
 
+// NotInPolicyNames 过滤掉 names 的策略
+func NotInPolicyNames(names []string) PolicyQueryOption {
+	return func(query *gorm.DB) *gorm.DB {
+		return query.Where("name NOT IN ?", names)
+	}
+}
+
 // PolicyQueryByName 根据 name 进行前缀查询
 func PolicyQueryByName(keyword string, value string) PolicyQueryOption {
 	return func(query *gorm.DB) *gorm.DB {

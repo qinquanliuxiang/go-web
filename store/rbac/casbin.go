@@ -30,10 +30,17 @@ func (receive *CasbinStore) GetRolePolicyByName(_ context.Context, role string) 
 //
 // polices [][]string{role, path, method}
 func (receive *CasbinStore) CreateRolePolices(_ context.Context, polices [][]string) (err error) {
-	_, err = receive.enforcer.AddPolicies(polices)
-	if err != nil {
-		return apierr.InternalServer().Set(apierr.CasbinErrCode, "failed to create casbin policy", err)
+	for _, v := range polices {
+		_, err := receive.enforcer.AddPolicy(v[0], v[1], v[2])
+		if err != nil {
+			return apierr.InternalServer().Set(apierr.CasbinErrCode, "failed to create casbin policy", err)
+		}
 	}
+
+	// _, err = receive.enforcer.AddPolicies(polices)
+	// if err != nil {
+	// 	return apierr.InternalServer().Set(apierr.CasbinErrCode, "failed to create casbin policy", err)
+	// }
 
 	return nil
 }

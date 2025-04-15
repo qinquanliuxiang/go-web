@@ -3,12 +3,13 @@ package ldap_test
 import (
 	"context"
 	"fmt"
-	"github.com/go-ldap/ldap/v3"
 	"log"
 	"qqlx/base/conf"
 	"qqlx/base/data"
 	ldapClient "qqlx/store/ldap"
 	"testing"
+
+	"github.com/go-ldap/ldap/v3"
 )
 
 var (
@@ -37,20 +38,19 @@ func IntLdap() {
 
 func TestInitLdap(t *testing.T) {
 	IntLdap()
+	err := ldapStore.DeleteUser(ctx, "testetes")
+	if err != nil {
+		t.Logf("删除用户失败: %v", err)
+	}
 }
 
 // 创建组
 func TestLdapCreateGroup(t *testing.T) {
-	err = ldapStore.CreateGroup(ctx, "test")
+	err = ldapStore.CreateGroup(ctx, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer closeFunc()
-
-	err = ldapStore.CreateGroup(ctx, "test")
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	t.Log("组创建成功")
 }

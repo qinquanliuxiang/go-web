@@ -2,6 +2,7 @@ package ldap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"qqlx/base/apierr"
 	"qqlx/base/conf"
@@ -75,6 +76,13 @@ func (receive *Store) DeleteUser(_ context.Context, username string) error {
 	dn := fmt.Sprintf("uid=%s,%s", username, receive.userBase)
 	userReq := ldap.NewDelRequest(dn, nil)
 	if err := receive.ldap.Del(userReq); err != nil {
+		var ldapErr *ldap.Error
+		if errors.As(err, &ldapErr) {
+			// 用户不存在，忽略错误
+			if ldapErr.ResultCode == ldap.LDAPResultNoSuchObject {
+				return nil
+			}
+		}
 		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap delete user failed", err)
 	}
 	return nil
@@ -166,12 +174,19 @@ func (receive *Store) CreateGroup(_ context.Context, groupName string) error {
 	return nil
 }
 
-// DeleteGroup 删除组
+// DeleteGroup 删除组 如果删除的用户组不存在，返回 nil
 func (receive *Store) DeleteGroup(_ context.Context, groupName string) error {
 	groupDN := fmt.Sprintf("cn=%s,%s", groupName, receive.groupBase)
 	groupReq := ldap.NewDelRequest(groupDN, nil)
 	if err := receive.ldap.Del(groupReq); err != nil {
-		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap delete group failed", err)
+		var ldapErr *ldap.Error
+		if errors.As(err, &ldapErr) {
+			// 组不存在，忽略错误
+			if ldapErr.ResultCode == ldap.LDAPResultNoSuchObject {
+				return nil
+			}
+		}
+		return apierr.InternalServer().Set(apierr.LdapErrCode, "ldap delete group failed", reason.ErrLdapGroupNotFound)
 	}
 	return nil
 }
