@@ -224,5 +224,8 @@ func initData(cf string) {
 	if err = userRoleStore.AppendRoles(ctxValue, adminUser, []model.Role{*adminRole}); err != nil {
 		logger.Caller().Error(err)
 	}
+	if err := ldapStore.AddUserToGroup(ctxValue, adminReq.Name, "admin"); err != nil {
+		logger.Caller().Error(err)
+	}
 	zap.S().Info("init data complete")
 }
