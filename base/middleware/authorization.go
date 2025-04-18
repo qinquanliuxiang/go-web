@@ -5,11 +5,11 @@ import (
 	"qqlx/base/apierr"
 	"qqlx/base/constant"
 	"qqlx/base/helpers"
+	"qqlx/base/interfaces"
 	"qqlx/base/logger"
 	"qqlx/base/reason"
 	"qqlx/model"
 	"qqlx/pkg/jwt"
-	"qqlx/store"
 	"qqlx/store/cache"
 	"qqlx/store/userstore"
 
@@ -19,12 +19,12 @@ import (
 const authFailed = "authentication failed"
 
 type AuthorizationMiddleware struct {
-	cache      store.CacheInterface
-	authorizer store.Authorizer
-	userStore  store.UserStoreInterface
+	cache      interfaces.CacheInterface
+	authorizer interfaces.Authorizer
+	userStore  interfaces.UserStoreInterface
 }
 
-func NewAuthorization(cache store.CacheInterface, authorizer store.Authorizer, userStore store.UserStoreInterface) *AuthorizationMiddleware {
+func NewAuthorization(cache interfaces.CacheInterface, authorizer interfaces.Authorizer, userStore interfaces.UserStoreInterface) *AuthorizationMiddleware {
 	return &AuthorizationMiddleware{
 		cache:      cache,
 		authorizer: authorizer,

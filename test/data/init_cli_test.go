@@ -4,7 +4,7 @@ import (
 	"context"
 	"qqlx/base/conf"
 	"qqlx/base/data"
-	"qqlx/store"
+	"qqlx/base/interfaces"
 	"qqlx/store/cache"
 
 	"gorm.io/gorm"
@@ -14,7 +14,7 @@ var (
 	ctx       = context.Background()
 	db        *gorm.DB
 	f         func()
-	cacheImpl store.CacheInterface
+	cacheImpl interfaces.CacheInterface
 )
 
 func InitCli() {

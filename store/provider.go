@@ -2,6 +2,7 @@ package store
 
 import (
 	"qqlx/base/data"
+	"qqlx/base/interfaces"
 	"qqlx/pkg/sonyflake"
 	"qqlx/store/cache"
 	"qqlx/store/ldap"
@@ -12,14 +13,14 @@ import (
 )
 
 var ProviderStore = wire.NewSet(
-	wire.Bind(new(CacheInterface), new(*cache.Store)),
-	wire.Bind(new(UserStoreInterface), new(*userstore.Store)),
-	wire.Bind(new(UserRoleStoreInterface), new(*userstore.UserAssociationStore)),
-	wire.Bind(new(RoleStoreInterface), new(*rbac.RoleStore)),
-	wire.Bind(new(PolicyStoreInterface), new(*rbac.PolicyStore)),
-	wire.Bind(new(RolePolicyStoreInterface), new(*rbac.RoleAssociationStore)),
-	wire.Bind(new(CasbinInterface), new(*rbac.CasbinStore)),
-	wire.Bind(new(LdapInterface), new(*ldap.Store)),
+	wire.Bind(new(interfaces.CacheInterface), new(*cache.Store)),
+	wire.Bind(new(interfaces.UserStoreInterface), new(*userstore.Store)),
+	wire.Bind(new(interfaces.UserRoleStoreInterface), new(*userstore.UserAssociationStore)),
+	wire.Bind(new(interfaces.RoleStoreInterface), new(*rbac.RoleStore)),
+	wire.Bind(new(interfaces.PolicyStoreInterface), new(*rbac.PolicyStore)),
+	wire.Bind(new(interfaces.RolePolicyStoreInterface), new(*rbac.RoleAssociationStore)),
+	wire.Bind(new(interfaces.CasbinInterface), new(*rbac.CasbinStore)),
+	wire.Bind(new(interfaces.LdapInterface), new(*ldap.Store)),
 	data.CreateRDB,
 	data.InitMySQL,
 	data.InitLdap,

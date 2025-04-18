@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"qqlx/base/apierr"
+	"qqlx/base/interfaces"
 	"qqlx/base/logger"
 	"qqlx/base/reason"
 	"qqlx/model"
 	"qqlx/pkg/sonyflake"
 	"qqlx/schema"
-	"qqlx/store"
 	"qqlx/store/rbac"
 
 	"gorm.io/gorm"
@@ -18,10 +18,10 @@ import (
 
 type PolicySVC struct {
 	generateID  *sonyflake.GenerateIDStruct
-	policyStore store.PolicyStoreInterface
+	policyStore interfaces.PolicyStoreInterface
 }
 
-func NewPolicySVC(generateID *sonyflake.GenerateIDStruct, policyStore store.PolicyStoreInterface) *PolicySVC {
+func NewPolicySVC(generateID *sonyflake.GenerateIDStruct, policyStore interfaces.PolicyStoreInterface) *PolicySVC {
 	return &PolicySVC{
 		generateID:  generateID,
 		policyStore: policyStore,

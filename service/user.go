@@ -9,13 +9,13 @@ import (
 	"qqlx/base/apierr"
 	"qqlx/base/conf"
 	"qqlx/base/helpers"
+	"qqlx/base/interfaces"
 	"qqlx/base/logger"
 	"qqlx/base/reason"
 	"qqlx/model"
 	"qqlx/pkg/jwt"
 	"qqlx/pkg/sonyflake"
 	"qqlx/schema"
-	"qqlx/store"
 	"qqlx/store/cache"
 	"qqlx/store/rbac"
 	"qqlx/store/userstore"
@@ -27,18 +27,18 @@ import (
 
 type UserSVC struct {
 	generateID    *sonyflake.GenerateIDStruct
-	userStore     store.UserStoreInterface
-	userRoleStore store.UserRoleStoreInterface
-	roleStore     store.RoleStoreInterface
-	cache         store.CacheInterface
-	casbin        store.CasbinInterface
+	userStore     interfaces.UserStoreInterface
+	userRoleStore interfaces.UserRoleStoreInterface
+	roleStore     interfaces.RoleStoreInterface
+	cache         interfaces.CacheInterface
+	casbin        interfaces.CasbinInterface
 	salt          string
 	ldapEnable    bool
-	ldap          store.LdapInterface
+	ldap          interfaces.LdapInterface
 }
 
 func NewUserSVC(
-	generateID *sonyflake.GenerateIDStruct, userStore store.UserStoreInterface, userRoleStore store.UserRoleStoreInterface, roleStore store.RoleStoreInterface, cache store.CacheInterface, casbin store.CasbinInterface, ldap store.LdapInterface) (*UserSVC, error) {
+	generateID *sonyflake.GenerateIDStruct, userStore interfaces.UserStoreInterface, userRoleStore interfaces.UserRoleStoreInterface, roleStore interfaces.RoleStoreInterface, cache interfaces.CacheInterface, casbin interfaces.CasbinInterface, ldap interfaces.LdapInterface) (*UserSVC, error) {
 	ldapEnable := conf.GetLdapEnable()
 	salt, err := conf.GetSalt()
 	if err != nil {

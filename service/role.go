@@ -7,12 +7,12 @@ import (
 	"qqlx/base/apierr"
 	"qqlx/base/conf"
 	"qqlx/base/helpers"
+	"qqlx/base/interfaces"
 	"qqlx/base/logger"
 	"qqlx/base/reason"
 	"qqlx/model"
 	"qqlx/pkg/sonyflake"
 	"qqlx/schema"
-	"qqlx/store"
 	"qqlx/store/rbac"
 
 	"gorm.io/gorm"
@@ -20,21 +20,21 @@ import (
 
 type RoleSVC struct {
 	generateID        *sonyflake.GenerateIDStruct
-	roleStore         store.RoleStoreInterface
-	policyStore       store.PolicyStoreInterface
-	appendPolicyStore store.RolePolicyStoreInterface
-	casbinStore       store.CasbinInterface
+	roleStore         interfaces.RoleStoreInterface
+	policyStore       interfaces.PolicyStoreInterface
+	appendPolicyStore interfaces.RolePolicyStoreInterface
+	casbinStore       interfaces.CasbinInterface
 	ldapEnable        bool
-	ldap              store.LdapInterface
+	ldap              interfaces.LdapInterface
 }
 
 func NewRoleSVC(
 	generateID *sonyflake.GenerateIDStruct,
-	generalRoleStore store.RoleStoreInterface,
-	policyStore store.PolicyStoreInterface,
-	appendStore store.RolePolicyStoreInterface,
-	casbinStore store.CasbinInterface,
-	ldap store.LdapInterface,
+	generalRoleStore interfaces.RoleStoreInterface,
+	policyStore interfaces.PolicyStoreInterface,
+	appendStore interfaces.RolePolicyStoreInterface,
+	casbinStore interfaces.CasbinInterface,
+	ldap interfaces.LdapInterface,
 ) *RoleSVC {
 	ldapEnable := conf.GetLdapEnable()
 	return &RoleSVC{
